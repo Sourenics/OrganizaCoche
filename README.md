@@ -39,6 +39,10 @@ indican en Horarios y salen en el rótulo, el PDF y el Excel. Al acabar,
 equidad muestra el **saldo** acumulado de cada persona (días conducidos de
 más o de menos respecto a lo que le tocaba) y la app lo compensa al calcular
 el ciclo siguiente; las marcas manuales mandan sobre esa compensación.
+La vista **Rejilla** reproduce la disposición de la V6 (personas en filas, un
+coche por columna como barra de color, ● conduce · ◐ también podría · ○
+paquete) y es lo que sale en el PDF, en apaisado; el interruptor *PDF con
+detalle por día* añade una segunda hoja con la semana, los coches y la equidad.
 El interruptor **Topes de días** añade una columna *Máx./sem.* para limitar,
 si se quiere, los días que conduce cada persona a la semana (la app sólo lo
 supera si no hay otra forma de cubrir una franja, y avisa).

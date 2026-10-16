@@ -46,6 +46,8 @@ de coches y repartir la carga de conducir de forma equitativa.
   cambio en el algoritmo se hace en los dos sitios.
 - Estado en `localStorage` (clave `cotxa.state.v1`) + exportar/importar JSON.
   Formato: `{capacity, cycle?:{start,end}, useCaps, people:[{name, active, maxDrive?, days:{dilluns:{in,out,flex,mark}}}]}`.
+  `printDetail` añade al PDF una 2ª hoja con el detalle (clase `print-detail`
+  en `body`); por defecto el PDF es sólo la rejilla V6 (`renderV6`, apaisado).
   `useCaps` es el interruptor "Topes de días"; sólo si está encendido se
   aplica `maxDrive` (tope de días conduciendo/semana por persona; equivale a
   `Person.max_drive` en Python, leído de `config.json`).
