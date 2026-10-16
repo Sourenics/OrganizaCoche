@@ -65,8 +65,8 @@ Publicarla (una sola vez):
 `--data data/horaris.csv` incrusta datos reales **sólo para uso local**: no
 publiques ese `docs/index.html`.
 El solver en JavaScript es un port de `src/cotxa/solver.py` y da el mismo
-resultado; si cambias el algoritmo, cambia los dos (o haz que el test de
-paridad lo detecte, ver hoja de ruta).
+resultado; si cambias el algoritmo, cambia los dos: `tests/test_parity.py`
+ejecuta el de la web con Node sobre los mismos datos y falla si divergen.
 
 ## Cómo funciona
 
@@ -137,9 +137,9 @@ tests/           pytest
 - [ ] **Entender la V6**: hay franjas con 3 conductores para 4 personas
       (p. ej. dilluns 8:00). Como todos salen del mismo sitio, probablemente
       son preferencias o restricciones no escritas que el CSV aún no recoge.
-- [ ] **Preferencias y restricciones blandas**: pares que prefieren (o no)
-      ir juntos, máximo de días conduciendo por persona, "este día tengo que
-      llevar el coche sí o sí".
+- [x] **Preferencias y restricciones blandas**: marcas *Conduce* / *Paquete*
+      por persona y día, tope opcional de días conduciendo, horas flexibles de
+      entrada y salida. Pendiente: pares que prefieren (o no) ir juntos.
 - [ ] **Rotación entre semanas**: generar planes A/B (semanas pares/impares)
       para que la equidad se mida en el trimestre y no sólo en la semana.
 - [ ] **Solver exacto**: formular como ILP/CP-SAT (OR-Tools) — ~85 variables
@@ -147,8 +147,7 @@ tests/           pytest
       `Plan`, así que es sustituible.
 - [ ] **Compensación económica**: contar km/viajes por persona y proponer
       ajustes.
-- [ ] **Test de paridad** Python ↔ JavaScript (ejecutar el solver JS con
-      Node o Playwright y comparar roles) para que no se desincronicen.
+- [x] **Test de paridad** Python ↔ JavaScript (`tests/test_parity.py`, con Node).
 - [ ] **Datos compartidos**: hoy el administrador es la única fuente de
       verdad (JSON exportado). Si hiciera falta que varias personas editen,
       añadir un almacén gratuito (Firebase/Supabase) sin rehacer la página.

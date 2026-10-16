@@ -49,7 +49,9 @@ de coches y repartir la carga de conducir de forma equitativa.
   SheetJS (`docs/vendor/xlsx.full.min.js`, 0.18.5, licencia Apache-2.0) para
   exportar Excel. El PDF se hace con `window.print()` + CSS `@media print`.
 - La función `solve(state)` del JS es un port 1:1 de `solver.py`. Cualquier
-  cambio en el algoritmo se hace en los dos sitios.
+  cambio en el algoritmo se hace en los dos sitios; `tests/test_parity.py`
+  ejecuta el JS con Node sobre los mismos datos y falla si divergen (se
+  salta si no hay Node). Tras tocar el solver, ejecutar `pytest` siempre.
 - Estado en `localStorage` (clave `cotxa.state.v1`) + exportar/importar JSON.
   Formato: `{capacity, cycle?:{start,end}, useCaps, people:[{name, active, maxDrive?, days:{dilluns:{in,inflex,out,flex,mark}}}]}`.
   `inflex` = "entra desde" (acepta entrar antes), `flex` = "espera hasta".
@@ -82,6 +84,7 @@ de coches y repartir la carga de conducir de forma equitativa.
   persona; se suma a los días conduciendo al medir la carga.
 - Tests con `pytest` (`tests/`). `test_real_data_is_balanced` corre sobre los
   datos de ejemplo de `data/horaris.sample.csv`; añade un test por cada regla nueva.
+  `test_parity.py` compara Python y web (necesita Node; si no, se salta).
 - Idioma: identificadores en inglés, docstrings/comentarios/mensajes al usuario
   en castellano. Nombres de días en valenciano (`dilluns`…`divendres`) porque
   así vienen en los datos.
