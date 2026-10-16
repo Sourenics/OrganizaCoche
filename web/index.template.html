@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Cotxà · Reparto de coche</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='48' fill='%230f5f4a'/%3E%3Ctext x='50' y='68' font-size='56' text-anchor='middle'%3E🚗%3C/text%3E%3C/svg%3E">
 <style>
   :root{
     --bg:#f6f4ef; --card:#fff; --ink:#1d1d1b; --muted:#6b6a65; --line:#e3e0d8;
@@ -16,24 +17,37 @@
     }
   }
   *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+  h1,h2,h3{font-weight:700;letter-spacing:-.01em}
+  .card h2{margin:0 0 8px;font-size:16px;display:flex;align-items:center;gap:8px}
+  .card h2::before{content:"";width:4px;height:16px;border-radius:2px;background:var(--accent)}
   header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line);background:var(--card);position:sticky;top:0;z-index:2}
-  header h1{font-size:20px;margin:0 auto 0 0;letter-spacing:.2px}
+  header h1{font-size:20px;margin:0 auto 0 0;letter-spacing:.2px;display:flex;align-items:center;gap:10px}
+  header h1::before{content:"🚗";font-size:18px}
   header h1 small{color:var(--muted);font-weight:400;font-size:13px;margin-left:8px}
   nav button{background:none;border:1px solid var(--line);color:var(--ink);padding:7px 14px;border-radius:999px;cursor:pointer;font-size:14px}
   nav button.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+  nav button:not(.on):hover{border-color:var(--accent);color:var(--accent)}
+  button{transition:background .15s,border-color .15s,color .15s,transform .05s} button:active:not(:disabled){transform:translateY(1px)}
+  button.primary:hover{filter:brightness(1.08)} button.ghost:hover{border-color:var(--accent)}
+  button.ghost.danger:hover{border-color:var(--warn);background:var(--warn-bg)}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   main{max-width:1200px;margin:0 auto;padding:16px}
-  .bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px}
-  .bar label{color:var(--muted);font-size:13px}
+  .bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:12px}
+  .bar label{color:var(--muted);font-size:13px;display:inline-flex;align-items:center;gap:6px}
+  .bar.settings{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 14px;gap:10px 22px}
+  .bar .sep{flex:1}
   button.primary{background:var(--accent);color:var(--accent-ink);border:0;padding:9px 16px;border-radius:8px;font-size:15px;cursor:pointer;font-weight:600}
   button.ghost{background:var(--card);border:1px solid var(--line);color:var(--ink);padding:8px 12px;border-radius:8px;cursor:pointer;font-size:14px}
   button.danger{color:var(--warn)}
   button.mv{padding:3px 6px;font-size:11px;line-height:1}
   button.mv:disabled{opacity:.3;cursor:default}
-  input[type=text],input[type=number],select{font:inherit;padding:5px 6px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink)}
+  input[type=text],input[type=number],input[type=date],select{font:inherit;padding:5px 6px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink)}
+  input[type=date]{font-size:13px;padding:4px 6px}
+  input:focus,select:focus{border-color:var(--accent);outline:0;box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 18%,transparent)}
   input.t{width:62px;text-align:center}
   input.t.off{opacity:.35}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:14px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:14px;box-shadow:0 1px 2px rgba(0,0,0,.03)}
   .scroll{overflow-x:auto}
   table{border-collapse:collapse;width:100%}
   th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle;white-space:nowrap}
@@ -41,12 +55,15 @@
   td.day{border-left:1px solid var(--line)}
   .mini{font-size:12px;color:var(--muted)}
   .inactive td{opacity:.45}
+  #tbl tbody tr:hover td{background:color-mix(in srgb,var(--soft) 45%,transparent)}
+  #tbl th.day,#tbl td.day{border-left:2px solid var(--line)}
   .plan-days{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:14px}
   .plan-day h2{margin:0 0 8px;font-size:17px;text-transform:capitalize}
   .plan-day h3{margin:10px 0 4px;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
-  .car{display:grid;grid-template-columns:auto auto 1fr;gap:2px 10px;align-items:baseline;padding:6px 0;border-bottom:1px dashed var(--line)}
+  .car{display:grid;grid-template-columns:auto auto 1fr;gap:2px 10px;align-items:baseline;padding:7px 0 7px 10px;border-bottom:1px dashed var(--line);border-left:4px solid var(--line);margin:2px 0;border-radius:3px}
   .car:last-child{border-bottom:0}
   .car .time{font-variant-numeric:tabular-nums;color:var(--muted);min-width:44px}
+  .plan-day{position:relative}
   .car .drv{font-weight:700}
   .car .pax{color:var(--muted)}
   .pill{display:inline-block;padding:1px 8px;border-radius:999px;background:var(--soft);color:var(--accent);font-size:12px;font-weight:600}
@@ -71,6 +88,14 @@
   .dot.d{background:#111} .dot.a{background:linear-gradient(90deg,#111 50%,transparent 50%)}
   .legend .dot{vertical-align:-2px}
   .legend{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:12px;color:var(--muted);margin-top:8px}
+  @media (max-width:640px){
+    main{padding:10px} header{padding:10px 12px;gap:8px} header h1{font-size:18px}
+    header h1 small{display:block;margin:0;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60vw}
+    header h1{flex-wrap:wrap} nav{display:flex;gap:6px;width:100%} nav button{flex:1;padding:8px}
+    .bar{gap:8px} .bar.settings{gap:8px 14px} button.primary,button.ghost{padding:8px 10px;font-size:13px}
+    .card{padding:12px;border-radius:10px} .plan-days{grid-template-columns:1fr}
+    th,td{padding:5px 6px}
+  }
   .legend b{color:var(--ink);font-weight:700}
   .grid td.p{text-align:center;color:var(--muted)}
   .grid td.s{text-align:center;color:var(--muted);opacity:.6}
@@ -126,13 +151,15 @@
 
 <main>
   <section id="tab-horaris">
-    <div class="bar">
+    <div class="bar settings">
       <label>Plazas por coche <input id="cap" type="number" min="2" max="9" class="t"></label>
       <label title="Periodo durante el que se repite este reparto">Ciclo del <input id="cycStart" type="date"> al <input id="cycEnd" type="date"></label>
       <label class="switch" title="Permite poner a cada persona un máximo de días conduciendo a la semana"><input type="checkbox" id="useCaps"><span class="track"></span>Topes de días</label>
+    </div>
+    <div class="bar">
       <button class="ghost" id="addPerson">+ Añadir persona</button>
       <button class="ghost" id="blank">Empezar de cero</button>
-      <span style="flex:1"></span>
+      <span class="sep"></span>
       <button class="ghost" id="export">Exportar JSON</button>
       <button class="ghost" id="importBtn">Importar JSON</button>
       <input id="importFile" type="file" accept="application/json" class="hidden">
@@ -463,7 +490,8 @@ function renderPlan(){
     g+=`<td style="text-align:center">${r.driving[n]??0}/${r.sharing[n]??0}</td></tr>`;
   }
   $("#gridTbl").innerHTML=g+"</tbody>";
-  // por día
+  // por día (cada coche con el mismo color que en la rejilla)
+  const colorOf=new Map(v6Columns(r).map(c=>[c.car,c.color]));
   let h="";
   for(const d of DAYS){
     const cs=r.cars.filter(c=>c.day===d); if(!cs.length) continue;
@@ -473,7 +501,7 @@ function renderPlan(){
       for(const c of cs.filter(c=>c.dir===dir)){
         const pq=c.passengers.filter(p=>!c.alternatives.includes(p));
         const pin=r.locked.has(c.driver+"|"+d)?" 📌":"";
-        h+=`<div class="car"><span class="time">${c.time}</span><span class="drv">🚗 ${esc(c.driver)}${pin}</span><span class="pax">${c.passengers.length?esc(c.passengers.join(", ")):"(solo)"}</span>`;
+        h+=`<div class="car" style="border-left-color:${colorOf.get(c)}"><span class="time">${c.time}</span><span class="drv">🚗 ${esc(c.driver)}${pin}</span><span class="pax">${c.passengers.length?esc(c.passengers.join(", ")):"(solo)"}</span>`;
         if(c.alternatives.length) h+=`<span class="alt">también ${c.alternatives.length>1?"podrían":"podría"}: ${esc(c.alternatives.join(", "))}</span>`;
         if(pq.length&&c.alternatives.length) h+=`<span class="pq">paquete${pq.length>1?"s":""}: ${esc(pq.join(", "))}</span>`;
         h+=`</div>`;
@@ -482,7 +510,7 @@ function renderPlan(){
     h+=`</div>`;
   }
   $("#plan").innerHTML=h;
-  renderV6(r, names);
+  renderV6(r, names, colorOf);
   // equidad
   const bal=balance(state);
   let q=`<thead><tr><th>Persona</th><th>Conduce</th><th>Comparte</th><th>%</th><th></th><th>Le toca</th><th>Saldo</th></tr></thead><tbody>`;
@@ -511,7 +539,7 @@ function v6Symbol(r,c,n){
   const extra=(c.dir==="salida"&&t?.moved?"⏳":"")+(r.locked.has(n+"|"+c.day)?"📌":"");
   return `<i class="dot ${k}"></i>`+(extra?`<small>${extra}</small>`:"");
 }
-function renderV6(r, names){
+function renderV6(r, names, colorOf){
   const cols=v6Columns(r);
   if(!cols.length){ $("#v6").innerHTML=""; return; }
   const days=DAYS.filter(d=>cols.some(c=>c.day===d));
