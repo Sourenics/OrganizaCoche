@@ -1,0 +1,6 @@
+{
+  "capacity": 4,
+  "_comentario": "capacity = plazas por coche incluido quien conduce (4 por defecto; a veces van 5: usa --capacity 5). Todo el mundo participa en la rueda salvo quien tenga active:false (fuera temporalmente). has_car y zone existen por si hicieran falta, pero por defecto todos tienen coche y salen del mismo punto de encuentro.",
+  "people": {
+  }
+}

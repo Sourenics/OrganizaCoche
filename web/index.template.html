@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cotxà · Reparto de coche</title>
+<style>
+  :root{
+    --bg:#f6f4ef; --card:#fff; --ink:#1d1d1b; --muted:#6b6a65; --line:#e3e0d8;
+    --accent:#0f5f4a; --accent-ink:#fff; --soft:#e7f1ec; --warn:#b4541a; --warn-bg:#fbeee4;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#17181a; --card:#212326; --ink:#ececea; --muted:#a2a29c; --line:#34363a;
+      --accent:#5fc2a2; --accent-ink:#0f1f1a; --soft:#1f3b32; --warn:#f0a06a; --warn-bg:#3a271b;
+    }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line);background:var(--card);position:sticky;top:0;z-index:2}
+  header h1{font-size:20px;margin:0 auto 0 0;letter-spacing:.2px}
+  header h1 small{color:var(--muted);font-weight:400;font-size:13px;margin-left:8px}
+  nav button{background:none;border:1px solid var(--line);color:var(--ink);padding:7px 14px;border-radius:999px;cursor:pointer;font-size:14px}
+  nav button.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+  main{max-width:1200px;margin:0 auto;padding:16px}
+  .bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px}
+  .bar label{color:var(--muted);font-size:13px}
+  button.primary{background:var(--accent);color:var(--accent-ink);border:0;padding:9px 16px;border-radius:8px;font-size:15px;cursor:pointer;font-weight:600}
+  button.ghost{background:var(--card);border:1px solid var(--line);color:var(--ink);padding:8px 12px;border-radius:8px;cursor:pointer;font-size:14px}
+  button.danger{color:var(--warn)}
+  input[type=text],input[type=number],select{font:inherit;padding:5px 6px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink)}
+  input.t{width:62px;text-align:center}
+  input.t.off{opacity:.35}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:14px}
+  .scroll{overflow-x:auto}
+  table{border-collapse:collapse;width:100%}
+  th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle;white-space:nowrap}
+  th{font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px}
+  td.day{border-left:1px solid var(--line)}
+  .mini{font-size:12px;color:var(--muted)}
+  .inactive td{opacity:.45}
+  .plan-days{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:14px}
+  .plan-day h2{margin:0 0 8px;font-size:17px;text-transform:capitalize}
+  .plan-day h3{margin:10px 0 4px;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+  .car{display:flex;gap:10px;align-items:baseline;padding:5px 0;border-bottom:1px dashed var(--line)}
+  .car:last-child{border-bottom:0}
+  .car .time{font-variant-numeric:tabular-nums;color:var(--muted);min-width:44px}
+  .car .drv{font-weight:700}
+  .car .pax{color:var(--muted)}
+  .pill{display:inline-block;padding:1px 8px;border-radius:999px;background:var(--soft);color:var(--accent);font-size:12px;font-weight:600}
+  .warn{background:var(--warn-bg);color:var(--warn);border-radius:8px;padding:8px 12px;margin-top:8px}
+  .grid td.c{background:var(--soft);font-weight:700;text-align:center}
+  .grid td.p{text-align:center;color:var(--muted)}
+  .grid td.s{text-align:center;color:var(--muted);opacity:.6}
+  .bar-eq{height:8px;background:var(--line);border-radius:4px;overflow:hidden;min-width:120px}
+  .bar-eq i{display:block;height:100%;background:var(--accent)}
+  .hidden{display:none}
+  footer{color:var(--muted);font-size:12px;text-align:center;padding:20px}
+  @media print{
+    header,.bar,footer,.noprint,#tab-horaris{display:none!important}
+    #tab-pla{display:block!important} #printTitle{display:block!important}
+    body{background:#fff;color:#000;font-size:12px} .card{break-inside:avoid;border:1px solid #ccc;background:#fff}
+    .plan-days{grid-template-columns:repeat(2,1fr)} .grid td.c{background:#e4efe9}
+    @page{margin:12mm}
+  }
+</style>
+<script src="vendor/xlsx.full.min.js" defer></script>
+</head>
+<body>
+<header>
+  <h1>Cotxà <small id="season">Reparto de coche compartido</small></h1>
+  <nav>
+    <button data-tab="horaris" class="on">Horarios</button>
+    <button data-tab="pla">Reparto</button>
+  </nav>
+</header>
+
+<main>
+  <section id="tab-horaris">
+    <div class="bar">
+      <label>Plazas por coche <input id="cap" type="number" min="2" max="9" class="t"></label>
+      <button class="ghost" id="addPerson">+ Añadir persona</button>
+      <button class="ghost" id="blank">Empezar de cero</button>
+      <span style="flex:1"></span>
+      <button class="ghost" id="export">Exportar JSON</button>
+      <button class="ghost" id="importBtn">Importar JSON</button>
+      <input id="importFile" type="file" accept="application/json" class="hidden">
+      <button class="ghost danger" id="reset">Restablecer datos iniciales</button>
+    </div>
+    <div class="warn noprint" id="sampleNote" style="margin-bottom:12px">
+      <b>Datos de ejemplo</b> (nombres inventados). Para trabajar con los vuestros, pulsa
+      <b>Importar JSON</b> y elige vuestro archivo. Se guardará sólo en este navegador; nada se sube a ningún sitio.
+    </div>
+    <div class="card scroll">
+      <table id="tbl"></table>
+      <p class="mini" style="margin:10px 0 0">
+        Horas en formato <b>8:00</b>. Deja entrada y salida vacías si ese día no viene.
+        <b>Espera hasta</b>: hora máxima a la que acepta salir si así va acompañada.
+        <b>Comparte</b>: desmarca si ese día va por su cuenta. Una persona <b>inactiva</b> queda fuera de la rueda sin perder sus horarios.
+        Los cambios se guardan automáticamente en este navegador; usa <b>Exportar</b> para tener copia y <b>Importar</b> para recuperarla en otro dispositivo.
+      </p>
+    </div>
+    <div class="bar"><button class="primary" id="go">Calcular reparto →</button></div>
+  </section>
+
+  <section id="tab-pla" class="hidden">
+    <div id="printTitle" class="hidden" style="margin-bottom:10px"><h1 style="margin:0;font-size:20px">Cotxà · Reparto semanal</h1><div class="mini" id="printDate"></div></div>
+    <div class="bar noprint">
+      <button class="primary" id="go2">Recalcular</button>
+      <button class="ghost" id="xlsx">Descargar Excel</button>
+      <button class="ghost" onclick="window.print()">Guardar PDF / Imprimir</button>
+      <span class="mini" id="planMeta"></span>
+    </div>
+    <div id="warnings"></div>
+    <div class="card"><h2 style="margin:0 0 8px;font-size:17px">Semana de un vistazo</h2>
+      <p class="mini" style="margin:0 0 8px">🚗 conduce (ida y vuelta) · · pasajero · — va por su cuenta · vacío: no viene</p>
+      <div class="scroll"><table id="gridTbl" class="grid"></table></div>
+    </div>
+    <div class="plan-days" id="plan"></div>
+    <div class="card"><h2 style="margin:0 0 8px;font-size:17px">Equidad</h2>
+      <p class="mini" style="margin:0 0 8px">Días conduciendo respecto a los días que comparte coche.</p>
+      <div class="scroll"><table id="eqTbl"></table></div>
+    </div>
+  </section>
+</main>
+<footer>Cotxà · los datos viven en este navegador (y en el JSON que exportes). Nada se envía a ningún servidor.</footer>
+
+<script>
+const SEED = __SEED__;
+const DAYS = ["dilluns","dimarts","dimecres","dijous","divendres"];
+const KEY = "cotxa.state.v1";
+
+// ---------- estado ----------
+let state = load();
+function load(){
+  try{ const s = localStorage.getItem(KEY); if(s) return JSON.parse(s); }catch(e){}
+  return structuredClone(SEED);
+}
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(e){} }
+function blankDays(){ const d={}; for(const k of DAYS) d[k]={in:"",out:"",flex:"",share:"si"}; return d; }
+
+// ---------- solver (port de src/cotxa/solver.py) ----------
+function normTime(t){ t=(t||"").trim().replace(".",":").replace(",",":"); if(!t) return ""; const m=t.match(/^(\d{1,2}):?(\d{2})$/); if(!m) return t; return `${+m[1]}:${m[2]}`; }
+function mins(t){ const [h,m]=t.split(":").map(Number); return h*60+(m||0); }
+
+function solve(st){
+  const cap = +st.capacity || 4;
+  const warnings = [];
+  // trayectos activos
+  let trips=[];
+  for(const p of st.people){
+    if(!p.active) continue;
+    for(const d of DAYS){
+      const h=p.days[d]; if(!h) continue;
+      const tin=normTime(h.in), tout=normTime(h.out);
+      if(!tin && !tout) continue;
+      if(!tin || !tout){ warnings.push(`${p.name}, ${d}: falta la hora de entrada o de salida`); continue; }
+      trips.push({person:p.name, day:d, in:tin, out:tout, flex:normTime(h.flex), share:h.share!=="no"});
+    }
+  }
+  // flex: si saldría sola pero acepta esperar y a la hora flexible hay gente, se mueve
+  const cnt={}; for(const t of trips) if(t.share) cnt[t.day+"|"+t.out]=(cnt[t.day+"|"+t.out]||0)+1;
+  for(const t of trips){
+    if(t.share && t.flex && cnt[t.day+"|"+t.out]===1 && (cnt[t.day+"|"+t.flex]||0)>=1){ t.out=t.flex; t.moved=true; }
+  }
+  const roles={}, members={}, personSlots={}, sharing={}, driving={};
+  const sk=(day,dir,time)=>`${day}|${dir}|${time}`;
+  for(const t of trips){
+    const k=t.person+"|"+t.day;
+    if(!t.share){ roles[k]="solo"; continue; }
+    roles[k]="pasajero";
+    const a=sk(t.day,"entrada",t.in), b=sk(t.day,"salida",t.out);
+    (members[a]??=[]).push(t.person); (members[b]??=[]).push(t.person);
+    personSlots[k]=[a,b];
+    sharing[t.person]=(sharing[t.person]||0)+1; driving[t.person]??=0;
+  }
+  const required={}; for(const s in members) required[s]=Math.ceil(members[s].length/cap);
+  const dayOf=s=>s.split("|")[0];
+  const driversIn=s=>members[s].filter(p=>roles[p+"|"+dayOf(s)]==="conductor").length;
+  const deficit=s=>required[s]-driversIn(s);
+  const feasible=()=>Object.keys(members).every(s=>deficit(s)<=0);
+  const fairness=()=>{ const r=Object.keys(sharing).map(p=>driving[p]/sharing[p]); if(!r.length) return 0; const m=r.reduce((a,b)=>a+b,0)/r.length; return r.reduce((a,x)=>a+(x-m)**2,0); };
+
+  // 1. greedy de cobertura
+  for(;;){
+    let slot=null, best=-Infinity;
+    for(const s in members){ const d=deficit(s); if(d>best){best=d;slot=s;} }
+    if(!slot || best<=0) break;
+    const day=dayOf(slot);
+    const cands=members[slot].filter(p=>roles[p+"|"+day]==="pasajero");
+    if(!cands.length){ warnings.push(`${slot.replace(/\|/g," ")}: faltan conductores (${driversIn(slot)} coches para ${members[slot].length} personas)`); required[slot]=driversIn(slot); continue; }
+    cands.sort((p,q)=>{
+      const sp=driving[p]/sharing[p], sq=driving[q]/sharing[q]; if(sp!==sq) return sp-sq;
+      const op=personSlots[p+"|"+day].find(s=>s!==slot), oq=personSlots[q+"|"+day].find(s=>s!==slot);
+      const dp=Math.max(deficit(op),0), dq=Math.max(deficit(oq),0); if(dp!==dq) return dq-dp;
+      return p.localeCompare(q);
+    });
+    roles[cands[0]+"|"+day]="conductor"; driving[cands[0]]++;
+  }
+  // 2. búsqueda local
+  let improved=true, guard=0;
+  while(improved && guard++<500){
+    improved=false; const base=fairness();
+    outer: for(const k of Object.keys(roles)){
+      if(roles[k]!=="conductor") continue;
+      const [p,day]=k.split("|");
+      roles[k]="pasajero"; driving[p]--;
+      if(feasible() && fairness()<=base){ improved=true; break; }
+      const pool=new Set(); for(const s of personSlots[k]) for(const m of members[s]) pool.add(m);
+      for(const q of pool){
+        if(q===p || roles[q+"|"+day]!=="pasajero") continue;
+        roles[q+"|"+day]="conductor"; driving[q]++;
+        if(feasible() && fairness()<base-1e-9){ improved=true; break outer; }
+        roles[q+"|"+day]="pasajero"; driving[q]--;
+      }
+      roles[k]="conductor"; driving[p]++;
+    }
+  }
+  // 3. coches
+  const cars=[];
+  const slots=Object.keys(members).sort((a,b)=>{const A=a.split("|"),B=b.split("|"); return DAYS.indexOf(A[0])-DAYS.indexOf(B[0])||A[1].localeCompare(B[1])||mins(A[2])-mins(B[2]);});
+  for(const s of slots){
+    const [day,dir,time]=s.split("|");
+    const drv=members[s].filter(p=>roles[p+"|"+day]==="conductor").sort();
+    const pax=members[s].filter(p=>roles[p+"|"+day]==="pasajero").sort();
+    if(!drv.length){ warnings.push(`${day} ${dir} ${time}: nadie puede conducir (${pax.join(", ")})`); continue; }
+    const sc=drv.map(d=>({day,dir,time,driver:d,passengers:[]}));
+    pax.forEach((p,i)=>{ const c=sc[i%sc.length]; if(c.passengers.length+1>=cap) warnings.push(`${day} ${dir} ${time}: ${p} no cabe`); c.passengers.push(p); });
+    cars.push(...sc);
+  }
+  return {roles, cars, sharing, driving, trips, warnings, cap};
+}
+
+// ---------- UI: horarios ----------
+const $=s=>document.querySelector(s);
+function renderTable(){
+  const t=$("#tbl");
+  let h=`<thead><tr><th>Persona</th><th>Activa</th>`;
+  for(const d of DAYS) h+=`<th class="day" colspan="4">${d}</th>`;
+  h+=`<th></th></tr><tr><th></th><th></th>`;
+  for(const d of DAYS) h+=`<th class="day">Entrada</th><th>Salida</th><th>Espera hasta</th><th>Comparte</th>`;
+  h+=`<th></th></tr></thead><tbody>`;
+  state.people.forEach((p,i)=>{
+    h+=`<tr class="${p.active?"":"inactive"}"><td><input type="text" data-i="${i}" data-f="name" value="${esc(p.name)}" style="width:110px"></td>`;
+    h+=`<td style="text-align:center"><input type="checkbox" data-i="${i}" data-f="active" ${p.active?"checked":""}></td>`;
+    for(const d of DAYS){
+      const x=p.days[d]||{in:"",out:"",flex:"",share:"si"}; const off=!x.in&&!x.out;
+      h+=`<td class="day"><input class="t ${off?"off":""}" type="text" data-i="${i}" data-d="${d}" data-f="in" value="${esc(x.in)}" placeholder="–"></td>`;
+      h+=`<td><input class="t ${off?"off":""}" type="text" data-i="${i}" data-d="${d}" data-f="out" value="${esc(x.out)}" placeholder="–"></td>`;
+      h+=`<td><input class="t ${off?"off":""}" type="text" data-i="${i}" data-d="${d}" data-f="flex" value="${esc(x.flex)}" placeholder="–"></td>`;
+      h+=`<td style="text-align:center"><input type="checkbox" data-i="${i}" data-d="${d}" data-f="share" ${x.share!=="no"?"checked":""} ${off?"disabled":""}></td>`;
+    }
+    h+=`<td><button class="ghost danger" data-del="${i}" title="Eliminar">✕</button></td></tr>`;
+  });
+  t.innerHTML=h+"</tbody>";
+  $("#cap").value=state.capacity;
+  $("#sampleNote").classList.toggle("hidden", !state.sample);
+}
+function esc(s){ return String(s??"").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;"); }
+$("#tbl").addEventListener("change",e=>{
+  const el=e.target, i=+el.dataset.i, f=el.dataset.f, d=el.dataset.d; if(isNaN(i)) return;
+  const p=state.people[i]; p.days??=blankDays();
+  delete state.sample; // en cuanto se edita algo ya no son los datos de ejemplo
+  if(f==="name") p.name=el.value.trim()||p.name;
+  else if(f==="active") p.active=el.checked;
+  else { p.days[d]??={in:"",out:"",flex:"",share:"si"}; if(f==="share") p.days[d].share=el.checked?"si":"no"; else p.days[d][f]=normTime(el.value); }
+  save(); renderTable();
+});
+$("#tbl").addEventListener("click",e=>{
+  const b=e.target.closest("[data-del]"); if(!b) return;
+  const p=state.people[+b.dataset.del];
+  if(confirm(`¿Eliminar a ${p.name} y sus horarios? (Si es temporal, mejor desmarca "Activa".)`)){ state.people.splice(+b.dataset.del,1); save(); renderTable(); }
+});
+$("#cap").addEventListener("change",e=>{ state.capacity=Math.max(2,+e.target.value||4); save(); });
+$("#addPerson").onclick=()=>{ const n=prompt("Nombre"); if(!n) return; state.people.push({name:n.trim(),active:true,days:blankDays()}); save(); renderTable(); };
+$("#export").onclick=()=>{ const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([JSON.stringify(state,null,2)],{type:"application/json"})); a.download=`cotxa-${new Date().toISOString().slice(0,10)}.json`; a.click(); };
+$("#importBtn").onclick=()=>$("#importFile").click();
+$("#importFile").onchange=async e=>{ const f=e.target.files[0]; if(!f) return; try{ const j=JSON.parse(await f.text()); if(!Array.isArray(j.people)) throw 0; delete j.sample; state=j; save(); renderTable(); alert("Datos importados."); }catch{ alert("El archivo no parece un JSON de Cotxà."); } e.target.value=""; };
+$("#blank").onclick=()=>{ if(confirm("¿Vaciar la tabla para introducir vuestros datos desde cero? (Exporta antes si quieres conservar algo.)")){ state={capacity:4,people:[]}; save(); renderTable(); } };
+$("#reset").onclick=()=>{ if(confirm("¿Volver a los datos iniciales? Se perderán los cambios de este navegador (exporta antes si quieres copia).")){ state=structuredClone(SEED); save(); renderTable(); } };
+
+// ---------- UI: reparto ----------
+function renderPlan(){
+  const r=solve(state); lastResult=r;
+  $("#printDate").textContent="Generado el "+new Date().toLocaleDateString("es-ES",{day:"numeric",month:"long",year:"numeric"});
+  $("#planMeta").textContent=`${r.cars.length} coches/semana · ${r.cap} plazas · ${Object.keys(r.sharing).length} personas en la rueda`;
+  $("#warnings").innerHTML=r.warnings.length?`<div class="card"><b>Avisos</b>${r.warnings.map(w=>`<div class="warn">${esc(w)}</div>`).join("")}</div>`:"";
+  // rejilla
+  const names=state.people.filter(p=>p.active).map(p=>p.name).sort((a,b)=>a.localeCompare(b));
+  let g=`<thead><tr><th>Persona</th>${DAYS.map(d=>`<th class="day">${d}</th>`).join("")}<th>Conduce</th></tr></thead><tbody>`;
+  for(const n of names){
+    g+=`<tr><td><b>${esc(n)}</b></td>`;
+    for(const d of DAYS){
+      const role=r.roles[n+"|"+d]; const t=r.trips.find(x=>x.person===n&&x.day===d);
+      if(!t){ g+=`<td class="day"></td>`; continue; }
+      const times=`<div class="mini">${t.in} → ${t.out}${t.moved?" ⏳":""}</div>`;
+      if(role==="conductor") g+=`<td class="day c">🚗${times}</td>`;
+      else if(role==="pasajero") g+=`<td class="day p">·${times}</td>`;
+      else g+=`<td class="day s">—${times}</td>`;
+    }
+    g+=`<td style="text-align:center">${r.driving[n]??0}/${r.sharing[n]??0}</td></tr>`;
+  }
+  $("#gridTbl").innerHTML=g+"</tbody>";
+  // por día
+  let h="";
+  for(const d of DAYS){
+    const cs=r.cars.filter(c=>c.day===d); if(!cs.length) continue;
+    h+=`<div class="card plan-day"><h2>${d}</h2>`;
+    for(const dir of ["entrada","salida"]){
+      h+=`<h3>${dir}</h3>`;
+      for(const c of cs.filter(c=>c.dir===dir)) h+=`<div class="car"><span class="time">${c.time}</span><span class="drv">🚗 ${esc(c.driver)}</span><span class="pax">${c.passengers.length?esc(c.passengers.join(", ")):"(solo)"}</span></div>`;
+    }
+    h+=`</div>`;
+  }
+  $("#plan").innerHTML=h;
+  // equidad
+  let q=`<thead><tr><th>Persona</th><th>Conduce</th><th>Comparte</th><th>%</th><th></th></tr></thead><tbody>`;
+  for(const n of names){ const dr=r.driving[n]??0, sh=r.sharing[n]??0, pct=sh?Math.round(100*dr/sh):0;
+    q+=`<tr><td>${esc(n)}</td><td>${dr}</td><td>${sh}</td><td>${sh?pct+"%":"–"}</td><td><div class="bar-eq"><i style="width:${pct}%"></i></div></td></tr>`; }
+  $("#eqTbl").innerHTML=q+"</tbody>";
+}
+
+// ---------- exportar Excel ----------
+let lastResult=null;
+$("#xlsx").onclick=()=>{
+  if(typeof XLSX==="undefined"){ alert("La librería de Excel no ha cargado (¿sin conexión?). Prueba de nuevo o usa Guardar PDF."); return; }
+  const r=lastResult||solve(state);
+  const names=state.people.filter(p=>p.active).map(p=>p.name).sort((a,b)=>a.localeCompare(b));
+  const wb=XLSX.utils.book_new();
+  // 1. Semana: persona x día, igual que la rejilla
+  const sem=[["Persona",...DAYS,"Conduce","Comparte"]];
+  for(const n of names){
+    const row=[n];
+    for(const d of DAYS){ const role=r.roles[n+"|"+d], t=r.trips.find(x=>x.person===n&&x.day===d);
+      row.push(!t?"":(role==="conductor"?"CONDUCE ":role==="pasajero"?"pasajero ":"solo ")+`${t.in}-${t.out}`); }
+    row.push(r.driving[n]??0, r.sharing[n]??0); sem.push(row);
+  }
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sem), "Semana");
+  // 2. Coches
+  const cars=[["Día","Sentido","Hora","Conductor/a","Pasajeros/as","Ocupación"]];
+  for(const c of r.cars) cars.push([c.day,c.dir,c.time,c.driver,c.passengers.join(", "),c.passengers.length+1]);
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(cars), "Coches");
+  // 3. Equidad
+  const eq=[["Persona","Días conduce","Días comparte","%"]];
+  for(const n of names){ const dr=r.driving[n]??0, sh=r.sharing[n]??0; eq.push([n,dr,sh,sh?Math.round(100*dr/sh)/100:""]); }
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(eq), "Equidad");
+  // 4. Horarios (los datos de entrada, por si hay que reimportarlos)
+  const hor=[["Persona","Activa",...DAYS.flatMap(d=>[d+" entrada",d+" salida",d+" espera hasta",d+" comparte"])]];
+  for(const p of state.people){ const row=[p.name,p.active?"sí":"no"]; for(const d of DAYS){ const x=p.days?.[d]||{}; row.push(x.in||"",x.out||"",x.flex||"",x.share==="no"?"no":"sí"); } hor.push(row); }
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(hor), "Horarios");
+  for(const ws of Object.values(wb.Sheets)){ const w=[]; XLSX.utils.sheet_to_json(ws,{header:1}).forEach(r=>r.forEach((v,i)=>w[i]=Math.max(w[i]||8,String(v??"").length+2))); ws["!cols"]=w.map(wch=>({wch:Math.min(wch,40)})); }
+  XLSX.writeFile(wb, `cotxa-reparto-${new Date().toISOString().slice(0,10)}.xlsx`);
+};
+
+// ---------- pestañas ----------
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
+function showTab(t){ document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("on",b.dataset.tab===t)); $("#tab-horaris").classList.toggle("hidden",t!=="horaris"); $("#tab-pla").classList.toggle("hidden",t!=="pla"); if(t==="pla") renderPlan(); }
+$("#go").onclick=()=>showTab("pla"); $("#go2").onclick=renderPlan;
+renderTable();
+</script>
+</body>
+</html>

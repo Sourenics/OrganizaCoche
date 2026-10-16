@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+*.egg-info/
+dist/
+build/
+out/
+
+# Datos reales: NUNCA al repositorio. Usa data/horaris.sample.csv como ejemplo.
+data/horaris.csv
+data/*.real.*
+data/privat/
+*.dades-reals.json
+.DS_Store
+Thumbs.db
