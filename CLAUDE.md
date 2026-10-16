@@ -45,6 +45,10 @@ de coches y repartir la carga de conducir de forma equitativa.
   Formato: `{capacity, cycle?:{start,end}, people:[{name, active, days:{dilluns:{in,out,flex,mark}}}]}`.
   `cycle` (fechas ISO, opcional) rotula el plan, el PDF y el Excel; sólo
   existe en la web, el CLI no lo usa.
+  `history: [{start, end, weeks, closed, people:{name:{driving, sharing, fair}}}]`
+  son los ciclos cerrados ("Cerrar ciclo"). Saldo por persona = Σ (driving −
+  fair) × weeks (días; + = perjudicado). `biasFor()` lo reparte entre las
+  semanas del ciclo nuevo (12 si no hay fechas) y lo pasa a `solve(state, bias)`.
   `mark` ∈ `auto` (decide el solver) · `drive` (conduce sí o sí) · `pax`
   (paquete: nunca conduce ese día) · `solo` (no comparte). Los JSON antiguos
   traían `share: si/no`; `normalize()` los convierte al cargar/importar.
@@ -53,8 +57,10 @@ de coches y repartir la carga de conducir de forma equitativa.
 - Python ≥ 3.11, sin dependencias en runtime (openpyxl sólo para importar).
 - `src/cotxa/models.py` dataclasses · `solver.py` algoritmo · `report.py`
   salida · `cli.py` entrada · `io.py` carga de CSV/JSON.
-- `solve(trips, people, capacity) -> SolveResult(plan, warnings)` es la API
-  interna; cualquier solver nuevo debe respetar esa firma para poder compararlos.
+- `solve(trips, people, capacity, bias=None) -> SolveResult(plan, warnings)` es
+  la API interna; cualquier solver nuevo debe respetar esa firma para poder
+  compararlos. `bias` = compensación de ciclos anteriores en días/semana por
+  persona; se suma a los días conduciendo al medir la carga.
 - Tests con `pytest` (`tests/`). `test_real_data_is_balanced` corre sobre los
   datos de ejemplo de `data/horaris.sample.csv`; añade un test por cada regla nueva.
 - Idioma: identificadores en inglés, docstrings/comentarios/mensajes al usuario

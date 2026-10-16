@@ -133,6 +133,28 @@ def test_alternatives_exclude_paquetes_and_overloaded():
         assert car.alternatives == ["B"]
 
 
+def test_bias_compensates_previous_cycles():
+    # A y B idénticos: sin saldo se reparten; si A viene "perjudicada" (condujo de más
+    # en ciclos anteriores), ahora conduce menos días que B.
+    trips = [Trip(p, d, "8:00", "14:00") for p in "AB" for d in ("dilluns", "dimarts", "dimecres", "dijous")]
+    base = solve(trips, _people("A", "B"), capacity=4).plan
+    assert base.driving_days("A") == base.driving_days("B") == 2
+    comp = solve(trips, _people("A", "B"), capacity=4, bias={"A": 2.0}).plan
+    assert comp.driving_days("A") < comp.driving_days("B")
+    assert comp.driving_days("A") + comp.driving_days("B") == 4  # sigue cubierto cada día
+
+
+def test_cycle_balance():
+    # A conduce 2 de 2 días, B 0 de 2: media 0,5 → a cada uno le toca 1 día/semana.
+    # En un ciclo de 10 semanas, A acumula +10 días (perjudicada) y B −10.
+    trips = [Trip(p, d, "8:00", "14:00") for p in "AB" for d in ("dilluns", "dimarts")]
+    trips = [Trip(t.person, t.day, t.arrival, t.departure, None, Role.DRIVER if t.person == "A" else None) for t in trips]
+    plan = solve(trips, _people("A", "B"), capacity=4).plan
+    assert plan.fair_days("A") == plan.fair_days("B") == 1.0
+    assert plan.cycle_balance("A", 10) == 10.0
+    assert plan.cycle_balance("B", 10) == -10.0
+
+
 def test_csv_marca_column(tmp_path):
     csv_path = tmp_path / "h.csv"
     csv_path.write_text(

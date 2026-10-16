@@ -7,6 +7,9 @@ Enfoque (v0, sin dependencias):
    queden cubiertas y la carga de conducción sea lo más pareja posible.
    Las marcas manuales (conduce / paquete) se respetan siempre: un "conduce"
    se fija como conductor y un "paquete" nunca conduce ese día.
+   `bias` (opcional) es la compensación de ciclos anteriores, en días de
+   conducir a la semana: se suma a los días conduciendo de cada persona al
+   medir la carga, así que quien condujo de más antes conduce menos ahora.
    - Greedy: cubrir primero la franja con mayor déficit, eligiendo a la
      persona con menor ratio (días conduciendo / días compartiendo).
    - Búsqueda local: intercambios conductor<->pasajero dentro del mismo día
@@ -63,7 +66,7 @@ def _apply_flex(trips: list[Trip], people: dict[str, Person]) -> list[Trip]:
     return out
 
 
-def _fairness(driving: dict[str, int], sharing: dict[str, int]) -> float:
+def _fairness(driving: dict[str, float], sharing: dict[str, int]) -> float:
     ratios = [driving[p] / sharing[p] for p in sharing if sharing[p]]
     if not ratios:
         return 0.0
@@ -71,9 +74,13 @@ def _fairness(driving: dict[str, int], sharing: dict[str, int]) -> float:
     return sum((r - mean) ** 2 for r in ratios)
 
 
-def solve(trips: list[Trip], people: dict[str, Person], capacity: int = 4) -> SolveResult:
+def solve(
+    trips: list[Trip], people: dict[str, Person], capacity: int = 4,
+    bias: dict[str, float] | None = None,
+) -> SolveResult:
     warnings: list[str] = []
     trips = _apply_flex(trips, people)
+    bias = bias or {}
 
     roles: dict[tuple[str, str], Role] = {}
     locked: set[tuple[str, str]] = set()  # marcas manuales: el solver no las toca
@@ -82,6 +89,13 @@ def solve(trips: list[Trip], people: dict[str, Person], capacity: int = 4) -> So
     sharing: dict[str, int] = defaultdict(int)
     driving: dict[str, int] = defaultdict(int)
     pax_days: dict[str, int] = defaultdict(int)  # días marcados "paquete" por persona
+    # carga = días conduciendo + compensación de ciclos anteriores; es lo que se iguala
+    load: dict[str, float] = {}
+
+    def _load() -> dict[str, float]:
+        for p in sharing:
+            load[p] = driving[p] + bias.get(p, 0.0)
+        return load
 
     for t in trips:
         if not people[t.person].active:
@@ -143,7 +157,7 @@ def solve(trips: list[Trip], people: dict[str, Person], capacity: int = 4) -> So
         def score(p: str) -> tuple:
             other = [s for s in person_slots[(p, slot.day)] if s != slot][0]
             return (
-                driving[p] / sharing[p],        # menos carga primero
+                (driving[p] + bias.get(p, 0.0)) / sharing[p],  # menos carga primero
                 -max(deficit(other), 0),        # que ayude también en su otra franja
                 p,
             )
@@ -156,14 +170,14 @@ def solve(trips: list[Trip], people: dict[str, Person], capacity: int = 4) -> So
     improved = True
     while improved:
         improved = False
-        base = _fairness(driving, sharing)
+        base = _fairness(_load(), sharing)
         for (p, day), r in list(roles.items()):
             if r is not Role.DRIVER or (p, day) in locked:
                 continue
             # a) ¿sobra este conductor?
             roles[(p, day)] = Role.PASSENGER
             driving[p] -= 1
-            if feasible() and _fairness(driving, sharing) <= base:
+            if feasible() and _fairness(_load(), sharing) <= base:
                 improved = True
                 break
             # b) intercambio con un pasajero del mismo día con coche
@@ -174,7 +188,7 @@ def solve(trips: list[Trip], people: dict[str, Person], capacity: int = 4) -> So
                     continue
                 roles[(q, day)] = Role.DRIVER
                 driving[q] += 1
-                if feasible() and _fairness(driving, sharing) < base - 1e-9:
+                if feasible() and _fairness(_load(), sharing) < base - 1e-9:
                     swapped = improved = True
                     break
                 roles[(q, day)] = Role.PASSENGER
@@ -185,14 +199,14 @@ def solve(trips: list[Trip], people: dict[str, Person], capacity: int = 4) -> So
             driving[p] += 1
 
     # --- 3. Formar coches por franja ---------------------------------------------
-    ratios = [driving[p] / sharing[p] for p in sharing if sharing[p]]
+    ratios = [_load()[p] / sharing[p] for p in sharing if sharing[p]]
     mean_ratio = sum(ratios) / len(ratios) if ratios else 0.0
 
     def could_drive(q: str, p: str, day: str) -> bool:
-        """¿Podría q llevar el coche en lugar de p sin pasarse de lo que le toca?"""
+        """¿Podría q llevar el coche en lugar de p? Sí, si aún no llega a lo que le toca."""
         if (q, day) in locked or not people[q].has_car:
             return False
-        if driving[q] + 1 > math.ceil(mean_ratio * sharing[q] - 1e-9):
+        if load[q] >= mean_ratio * sharing[q] - 1e-9:
             return False
         roles[(p, day)], roles[(q, day)] = Role.PASSENGER, Role.DRIVER
         ok = feasible()

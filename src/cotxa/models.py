@@ -86,3 +86,19 @@ class Plan:
 
     def sharing_days(self, person: str) -> int:
         return sum(1 for (p, _), r in self.roles.items() if p == person and r is not Role.SOLO)
+
+    def people(self) -> list[str]:
+        return sorted({p for p, _ in self.roles})
+
+    def mean_ratio(self) -> float:
+        """Media de (días conduciendo / días compartiendo) entre quienes comparten."""
+        ratios = [self.driving_days(p) / self.sharing_days(p) for p in self.people() if self.sharing_days(p)]
+        return sum(ratios) / len(ratios) if ratios else 0.0
+
+    def fair_days(self, person: str) -> float:
+        """Días a la semana que "le tocaría" conducir según lo que comparte."""
+        return self.mean_ratio() * self.sharing_days(person)
+
+    def cycle_balance(self, person: str, weeks: int) -> float:
+        """Saldo del ciclo en días: positivo = condujo de más (perjudicado), negativo = de menos."""
+        return (self.driving_days(person) - self.fair_days(person)) * weeks
