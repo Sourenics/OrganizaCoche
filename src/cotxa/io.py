@@ -7,6 +7,9 @@ from pathlib import Path
 
 from .models import DAYS, Person, Role, Trip
 
+# Columna opcional "marca" del CSV: marca manual del organizador para ese día.
+MARKS = {"conduce": Role.DRIVER, "paquete": Role.PASSENGER, "no_comparte": Role.SOLO}
+
 
 def load_trips(path: str | Path) -> list[Trip]:
     trips: list[Trip] = []
@@ -15,9 +18,15 @@ def load_trips(path: str | Path) -> list[Trip]:
             if row["dia"] not in DAYS:
                 raise ValueError(f"Día desconocido: {row['dia']!r}")
             fixed = None
-            # Sólo respetamos "no_comparte" del histórico; conductor/pasajero los decide el solver
+            # Del histórico V6 sólo respetamos "no_comparte"; conductor/pasajero los decide el solver
             if Role.SOLO.value in (row.get("rol_entrada_v6"), row.get("rol_salida_v6")):
                 fixed = Role.SOLO
+            # La columna "marca" (conduce / paquete / no_comparte) manda sobre el histórico
+            mark = (row.get("marca") or "").strip().lower()
+            if mark:
+                if mark not in MARKS:
+                    raise ValueError(f"Marca desconocida: {mark!r} (usa conduce, paquete o no_comparte)")
+                fixed = MARKS[mark]
             trips.append(
                 Trip(
                     person=row["persona"].strip(),

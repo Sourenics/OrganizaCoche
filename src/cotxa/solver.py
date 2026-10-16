@@ -5,11 +5,15 @@ Enfoque (v0, sin dependencias):
 2. Cada franja necesita ceil(n / capacidad) coches.
 3. Elegir por (persona, día) quién conduce, de forma que todas las franjas
    queden cubiertas y la carga de conducción sea lo más pareja posible.
+   Las marcas manuales (conduce / paquete) se respetan siempre: un "conduce"
+   se fija como conductor y un "paquete" nunca conduce ese día.
    - Greedy: cubrir primero la franja con mayor déficit, eligiendo a la
      persona con menor ratio (días conduciendo / días compartiendo).
    - Búsqueda local: intercambios conductor<->pasajero dentro del mismo día
      que mantienen la cobertura y reducen la desigualdad.
-4. Repartir pasajeros entre los coches de cada franja.
+4. Repartir pasajeros entre los coches de cada franja y, en cada coche,
+   señalar quién más podría llevarlo sin pasarse de lo que le toca
+   ("también podrían"); el resto son "paquetes", como en la V6.
 
 Es un problema de cobertura pequeño (~17 personas x 5 días); si el greedy se
 queda corto, el siguiente paso natural es formularlo como ILP/CP-SAT
@@ -72,8 +76,12 @@ def solve(trips: list[Trip], people: dict[str, Person], capacity: int = 4) -> So
     trips = _apply_flex(trips, people)
 
     roles: dict[tuple[str, str], Role] = {}
+    locked: set[tuple[str, str]] = set()  # marcas manuales: el solver no las toca
     members: dict[Slot, list[str]] = defaultdict(list)
     person_slots: dict[tuple[str, str], tuple[Slot, Slot]] = {}
+    sharing: dict[str, int] = defaultdict(int)
+    driving: dict[str, int] = defaultdict(int)
+    pax_days: dict[str, int] = defaultdict(int)  # días marcados "paquete" por persona
 
     for t in trips:
         if not people[t.person].active:
@@ -82,17 +90,28 @@ def solve(trips: list[Trip], people: dict[str, Person], capacity: int = 4) -> So
             roles[t.key] = Role.SOLO
             continue
         roles[t.key] = Role.PASSENGER
+        sharing[t.person] += 1
+        driving.setdefault(t.person, 0)
+        if t.fixed_role is Role.DRIVER:
+            if people[t.person].has_car:
+                roles[t.key] = Role.DRIVER
+                driving[t.person] += 1
+                locked.add(t.key)
+            else:
+                warnings.append(f"{t.person}, {t.day}: marcado 'conduce' pero no tiene coche; se ignora la marca")
+        elif t.fixed_role is Role.PASSENGER:
+            locked.add(t.key)
+            pax_days[t.person] += 1
         s_in, s_out = _slots_for(t, people[t.person].zone)
         members[s_in].append(t.person)
         members[s_out].append(t.person)
         person_slots[t.key] = (s_in, s_out)
 
+    for p, n in pax_days.items():
+        if n == sharing[p]:
+            warnings.append(f"{p}: marcado 'paquete' todos sus días; no conducirá nunca")
+
     required = {s: math.ceil(len(m) / capacity) for s, m in members.items()}
-    sharing: dict[str, int] = defaultdict(int)
-    driving: dict[str, int] = defaultdict(int)
-    for (p, _), r in roles.items():
-        if r is not Role.SOLO:
-            sharing[p] += 1
 
     def drivers_in(slot: Slot) -> int:
         return sum(1 for p in members[slot] if roles[(p, slot.day)] is Role.DRIVER)
@@ -111,6 +130,7 @@ def solve(trips: list[Trip], people: dict[str, Person], capacity: int = 4) -> So
         candidates = [
             p for p in members[slot]
             if roles[(p, slot.day)] is Role.PASSENGER and people[p].has_car
+            and (p, slot.day) not in locked
         ]
         if not candidates:
             warnings.append(
@@ -138,7 +158,7 @@ def solve(trips: list[Trip], people: dict[str, Person], capacity: int = 4) -> So
         improved = False
         base = _fairness(driving, sharing)
         for (p, day), r in list(roles.items()):
-            if r is not Role.DRIVER:
+            if r is not Role.DRIVER or (p, day) in locked:
                 continue
             # a) ¿sobra este conductor?
             roles[(p, day)] = Role.PASSENGER
@@ -148,8 +168,9 @@ def solve(trips: list[Trip], people: dict[str, Person], capacity: int = 4) -> So
                 break
             # b) intercambio con un pasajero del mismo día con coche
             swapped = False
-            for q in {m for s in person_slots[(p, day)] for m in members[s]}:
-                if q == p or roles[(q, day)] is not Role.PASSENGER or not people[q].has_car:
+            # dict.fromkeys en vez de set: orden determinista (igual que el Set de JS)
+            for q in dict.fromkeys(m for s in person_slots[(p, day)] for m in members[s]):
+                if q == p or roles[(q, day)] is not Role.PASSENGER or not people[q].has_car or (q, day) in locked:
                     continue
                 roles[(q, day)] = Role.DRIVER
                 driving[q] += 1
@@ -164,6 +185,20 @@ def solve(trips: list[Trip], people: dict[str, Person], capacity: int = 4) -> So
             driving[p] += 1
 
     # --- 3. Formar coches por franja ---------------------------------------------
+    ratios = [driving[p] / sharing[p] for p in sharing if sharing[p]]
+    mean_ratio = sum(ratios) / len(ratios) if ratios else 0.0
+
+    def could_drive(q: str, p: str, day: str) -> bool:
+        """¿Podría q llevar el coche en lugar de p sin pasarse de lo que le toca?"""
+        if (q, day) in locked or not people[q].has_car:
+            return False
+        if driving[q] + 1 > math.ceil(mean_ratio * sharing[q] - 1e-9):
+            return False
+        roles[(p, day)], roles[(q, day)] = Role.PASSENGER, Role.DRIVER
+        ok = feasible()
+        roles[(p, day)], roles[(q, day)] = Role.DRIVER, Role.PASSENGER
+        return ok
+
     cars: list[Car] = []
     for slot in sorted(members, key=lambda s: (s.day, s.direction, s.time, s.zone)):
         drivers = sorted(p for p in members[slot] if roles[(p, slot.day)] is Role.DRIVER)
@@ -177,6 +212,8 @@ def solve(trips: list[Trip], people: dict[str, Person], capacity: int = 4) -> So
             if len(car.occupants) >= capacity:
                 warnings.append(f"{slot.day} {slot.direction} {slot.time}: {p} no cabe")
             car.passengers.append(p)
+        for car in slot_cars:
+            car.alternatives = [q for q in car.passengers if could_drive(q, car.driver, slot.day)]
         cars.extend(slot_cars)
 
     return SolveResult(Plan(roles, cars, capacity), warnings)

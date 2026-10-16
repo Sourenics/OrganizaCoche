@@ -17,6 +17,10 @@ de coches y repartir la carga de conducir de forma equitativa.
   no se usa salvo que cambie la situación).
 - Capacidad 4 por defecto (a veces 5: `--capacity 5`).
 - `salida_flex`: la persona acepta salir más tarde si así va acompañada.
+- Marcas manuales por `(persona, día)`: **conduce** se fija como conductor,
+  **paquete** nunca conduce ese día (pero comparte y cuenta en la equidad).
+  El solver no las toca. En cada coche se señala quién más *podría* llevarlo
+  sin pasarse de lo que le toca ("también podrían"); el resto son paquetes.
 - Equidad = igualar `días conduciendo / días compartiendo` entre personas.
   Alguien que viene 2 días no debe conducir tanto como quien viene 5.
 
@@ -38,7 +42,10 @@ de coches y repartir la carga de conducir de forma equitativa.
 - La función `solve(state)` del JS es un port 1:1 de `solver.py`. Cualquier
   cambio en el algoritmo se hace en los dos sitios.
 - Estado en `localStorage` (clave `cotxa.state.v1`) + exportar/importar JSON.
-  Formato: `{capacity, people:[{name, active, days:{dilluns:{in,out,flex,share}}}]}`.
+  Formato: `{capacity, people:[{name, active, days:{dilluns:{in,out,flex,mark}}}]}`.
+  `mark` ∈ `auto` (decide el solver) · `drive` (conduce sí o sí) · `pax`
+  (paquete: nunca conduce ese día) · `solo` (no comparte). Los JSON antiguos
+  traían `share: si/no`; `normalize()` los convierte al cargar/importar.
 
 ## Código
 - Python ≥ 3.11, sin dependencias en runtime (openpyxl sólo para importar).
@@ -79,6 +86,15 @@ añadir y eliminar personas; falta reordenarlas y retocar el reparto a mano.
 El ciclo sirve, de momento, para rotular el plan con sus fechas y para ver
 quién sale más perjudicado (conduce por encima de lo que le toca) y poder
 compensarlo después; no se generan semanas distintas.
+Uso real de la app: se entra al empezar un ciclo (horarios, cálculo, retoques,
+PDF y Excel para el grupo) y al terminar (ver quién salió perjudicado y
+compensarlo en el siguiente). No es de uso diario; los imprevistos del día a
+día no se gestionan en la app. El PDF y el Excel son el producto final.
+La compensación entre ciclos la aplica la app sola, mostrando el saldo, y el
+organizador puede corregirla a mano. Los horarios no cambian en todo el curso;
+una baja se gestiona desactivando a la persona (y, si es a mitad de ciclo,
+cerrando el ciclo con las semanas que lleve y abriendo otro). Hoy no existe
+tope semanal de días conduciendo por persona.
 
 ## Forma de trabajar con el organizador
 El usuario no es programador: es el organizador del grupo y usa la app para

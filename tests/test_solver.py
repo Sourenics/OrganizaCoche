@@ -79,6 +79,77 @@ def test_inactive_person_is_left_out():
     assert all("B" not in c.occupants for c in res.plan.cars)
 
 
+def test_forced_driver_is_kept():
+    # B está marcada "conduce" el dilluns aunque, por equidad, le tocaría a A (ya conduce menos)
+    trips = [
+        Trip("A", "dilluns", "8:00", "14:00"),
+        Trip("B", "dilluns", "8:00", "14:00", fixed_role=Role.DRIVER),
+        Trip("A", "dimarts", "8:00", "14:00"),
+        Trip("B", "dimarts", "8:00", "14:00", fixed_role=Role.DRIVER),
+    ]
+    res = solve(trips, _people("A", "B"), capacity=4)
+    assert res.plan.roles[("B", "dilluns")] is Role.DRIVER
+    assert res.plan.roles[("B", "dimarts")] is Role.DRIVER
+    assert res.plan.roles[("A", "dilluns")] is Role.PASSENGER
+    assert not res.warnings
+
+
+def test_paquete_never_drives():
+    trips = [
+        Trip("A", "dilluns", "8:00", "14:00", fixed_role=Role.PASSENGER),
+        Trip("B", "dilluns", "8:00", "14:00"),
+        Trip("C", "dilluns", "8:00", "14:00"),
+    ]
+    res = solve(trips, _people("A", "B", "C"), capacity=4)
+    assert res.plan.roles[("A", "dilluns")] is Role.PASSENGER
+    assert res.plan.sharing_days("A") == 1  # sigue contando como día compartido
+    assert "A" not in {c.driver for c in res.plan.cars}
+    # A es paquete todos sus días: aviso
+    assert any("A: marcado 'paquete' todos sus días" in w for w in res.warnings)
+
+
+def test_warning_when_only_paquetes():
+    trips = [
+        Trip("A", "dilluns", "8:00", "14:00", fixed_role=Role.PASSENGER),
+        Trip("B", "dilluns", "8:00", "14:00", fixed_role=Role.PASSENGER),
+    ]
+    res = solve(trips, _people("A", "B"), capacity=4)
+    assert not res.plan.cars
+    assert any("faltan conductores" in w for w in res.warnings)
+    assert any("nadie puede conducir" in w for w in res.warnings)
+
+
+def test_alternatives_exclude_paquetes_and_overloaded():
+    # Tres personas, un solo día: alguien conduce 1/1 y los demás 0/1.
+    # Un paquete nunca es alternativa; quien aún no conduce sí lo es.
+    trips = [
+        Trip("A", "dilluns", "8:00", "14:00", fixed_role=Role.DRIVER),
+        Trip("B", "dilluns", "8:00", "14:00"),
+        Trip("C", "dilluns", "8:00", "14:00", fixed_role=Role.PASSENGER),
+    ]
+    res = solve(trips, _people("A", "B", "C"), capacity=4)
+    for car in res.plan.cars:
+        assert car.driver == "A"
+        assert car.alternatives == ["B"]
+
+
+def test_csv_marca_column(tmp_path):
+    csv_path = tmp_path / "h.csv"
+    csv_path.write_text(
+        "persona,dia,entrada,salida,salida_flex,marca\n"
+        "A,dilluns,8:00,14:00,,conduce\n"
+        "B,dilluns,8:00,14:00,,paquete\n"
+        "C,dilluns,8:00,14:00,,no_comparte\n"
+        "D,dilluns,8:00,14:00,,\n",
+        encoding="utf-8",
+    )
+    trips = {t.person: t for t in load_trips(csv_path)}
+    assert trips["A"].fixed_role is Role.DRIVER
+    assert trips["B"].fixed_role is Role.PASSENGER
+    assert trips["C"].fixed_role is Role.SOLO
+    assert trips["D"].fixed_role is None
+
+
 def test_build_web_embeds_seed(tmp_path, monkeypatch):
     import importlib.util, json
     spec = importlib.util.spec_from_file_location("build_web", ROOT / "scripts" / "build_web.py")

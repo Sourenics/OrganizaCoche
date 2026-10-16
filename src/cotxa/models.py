@@ -39,7 +39,11 @@ class Trip:
     arrival: str  # "8:00"
     departure: str  # "13:55"
     departure_flex: str | None = None  # acepta esperar hasta esta hora
-    fixed_role: Role | None = None  # p.ej. SOLO si ese día no comparte
+    # Marca manual del organizador para ese día (None = lo decide el solver):
+    #   DRIVER    "conduce": se fija como conductor/a.
+    #   PASSENGER "paquete": va de pasajero/a seguro, nunca conduce ese día.
+    #   SOLO      "no comparte": va por su cuenta, fuera del reparto ese día.
+    fixed_role: Role | None = None
 
     @property
     def key(self) -> tuple[str, str]:
@@ -59,6 +63,10 @@ class Car:
     slot: Slot
     driver: str
     passengers: list[str] = field(default_factory=list)
+    # Pasajeros/as que también podrían llevar este coche sin pasarse de lo que
+    # les toca (como las marcas de "posible conductor" de la V6). El resto de
+    # pasajeros/as son "paquetes".
+    alternatives: list[str] = field(default_factory=list)
 
     @property
     def occupants(self) -> list[str]:

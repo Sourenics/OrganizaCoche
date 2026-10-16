@@ -28,6 +28,11 @@ página y sin servidor: tabla editable de personas y horarios (o *Empezar de
 cero*), botón *Calcular reparto*, vista semanal, reparto por día y franja,
 tabla de equidad, y exportación a **Excel** (4 hojas: Semana, Coches, Equidad,
 Horarios) y a **PDF** (botón *Guardar PDF / Imprimir* → "Guardar como PDF").
+Cada persona y día lleva una **marca**: *Auto* (decide la app), *Conduce*
+(se fija como conductor/a), *Paquete* (va de pasajero/a seguro) o *No
+comparte*. En el reparto, cada coche indica quién más **también podría**
+llevarlo sin pasarse de lo que le toca, como en la V6; un clic en la vista
+semanal alterna Auto → Conduce → Paquete y recalcula.
 La librería de Excel (SheetJS) va incluida en `docs/vendor/`, así que la app
 funciona sin conexión y sin depender de terceros.
 Los datos se guardan en el navegador y se pueden **exportar/importar** en JSON
@@ -95,6 +100,7 @@ borrar sus horarios. Todo el mundo sale del mismo punto de encuentro.
 | entrada | `8:00` | |
 | salida | `13:55` | |
 | salida_flex | `13:55` | opcional: acepta esperar hasta esta hora si así va acompañada |
+| marca | `paquete` | opcional: `conduce` (se fija como conductor/a), `paquete` (nunca conduce ese día) o `no_comparte` |
 | rol_entrada_v6 / rol_salida_v6 | `conductor` | histórico de la hoja; sólo `no_comparte` afecta al solver |
 
 ## Estructura

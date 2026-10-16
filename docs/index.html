@@ -54,6 +54,9 @@
   .grid td.c{background:var(--soft);font-weight:700;text-align:center}
   .grid td.p{text-align:center;color:var(--muted)}
   .grid td.s{text-align:center;color:var(--muted);opacity:.6}
+  .grid td.day.click{cursor:pointer} .grid td.day.click:hover{outline:2px solid var(--accent);outline-offset:-2px}
+  .car .alt{color:var(--muted);font-size:12px} .car .pq{color:var(--muted);opacity:.6;font-size:12px}
+  select.mk{font-size:12px;padding:3px 2px}
   .bar-eq{height:8px;background:var(--line);border-radius:4px;overflow:hidden;min-width:120px}
   .bar-eq i{display:block;height:100%;background:var(--accent)}
   .hidden{display:none}
@@ -98,7 +101,9 @@
       <p class="mini" style="margin:10px 0 0">
         Horas en formato <b>8:00</b>. Deja entrada y salida vacías si ese día no viene.
         <b>Espera hasta</b>: hora máxima a la que acepta salir si así va acompañada.
-        <b>Comparte</b>: desmarca si ese día va por su cuenta. Una persona <b>inactiva</b> queda fuera de la rueda sin perder sus horarios.
+        <b>Marca</b>: <i>Auto</i> deja que la app decida; <i>Conduce</i> fija a esa persona como conductora ese día;
+        <i>Paquete</i> va de pasajera seguro (nunca conduce ese día, pero sí comparte); <i>No comparte</i> va por su cuenta.
+        Una persona <b>inactiva</b> queda fuera de la rueda sin perder sus horarios.
         Con <b>▲ ▼</b> cambias el orden de la lista; el reparto y el Excel lo respetan.
         Los cambios se guardan automáticamente en este navegador; usa <b>Exportar</b> para tener copia y <b>Importar</b> para recuperarla en otro dispositivo.
       </p>
@@ -116,7 +121,8 @@
     </div>
     <div id="warnings"></div>
     <div class="card"><h2 style="margin:0 0 8px;font-size:17px">Semana de un vistazo</h2>
-      <p class="mini" style="margin:0 0 8px">🚗 conduce (ida y vuelta) · · pasajero · — va por su cuenta · vacío: no viene</p>
+      <p class="mini" style="margin:0 0 8px">🚗 conduce (ida y vuelta) · · pasajero · ○ paquete · — va por su cuenta · vacío: no viene · 📌 marca manual.
+        <span class="noprint">Haz clic en una casilla para alternar Auto → Conduce → Paquete; el reparto se recalcula.</span></p>
       <div class="scroll"><table id="gridTbl" class="grid"></table></div>
     </div>
     <div class="plan-days" id="plan"></div>
@@ -129,18 +135,27 @@
 <footer>Cotxà · los datos viven en este navegador (y en el JSON que exportes). Nada se envía a ningún servidor.</footer>
 
 <script>
-const SEED = {"capacity": 4, "sample": true, "people": [{"name": "Aina", "active": true, "days": {"dilluns": {"in": "8:00", "out": "13:00", "flex": "", "share": "si"}, "dimarts": {"in": "8:00", "out": "13:55", "flex": "", "share": "si"}, "dimecres": {"in": "8:00", "out": "13:55", "flex": "", "share": "si"}, "dijous": {"in": "8:55", "out": "13:55", "flex": "", "share": "si"}, "divendres": {"in": "8:00", "out": "12:05", "flex": "", "share": "si"}}}, {"name": "Biel", "active": true, "days": {"dilluns": {"in": "8:55", "out": "13:55", "flex": "", "share": "si"}, "dimarts": {"in": "8:00", "out": "13:55", "flex": "", "share": "si"}, "dimecres": {"in": "8:00", "out": "13:55", "flex": "", "share": "si"}, "dijous": {"in": "8:00", "out": "10:45", "flex": "", "share": "si"}, "divendres": {"in": "8:55", "out": "13:55", "flex": "", "share": "si"}}}, {"name": "Carme", "active": true, "days": {"dilluns": {"in": "8:00", "out": "13:55", "flex": "", "share": "si"}, "dimarts": {"in": "8:00", "out": "12:05", "flex": "", "share": "no"}, "dimecres": {"in": "8:00", "out": "12:05", "flex": "", "share": "si"}, "dijous": {"in": "8:00", "out": "15:05", "flex": "", "share": "si"}, "divendres": {"in": "11:10", "out": "13:55", "flex": "", "share": "no"}}}, {"name": "Dídac", "active": true, "days": {"dilluns": {"in": "8:00", "out": "13:55", "flex": "", "share": "si"}, "dimarts": {"in": "9:50", "out": "13:55", "flex": "", "share": "si"}, "dimecres": {"in": "8:55", "out": "13:55", "flex": "", "share": "si"}, "dijous": {"in": "8:00", "out": "12:05", "flex": "", "share": "si"}, "divendres": {"in": "8:00", "out": "13:55", "flex": "", "share": "si"}}}, {"name": "Empar", "active": true, "days": {"dilluns": {"in": "8:00", "out": "13:55", "flex": "", "share": "si"}, "dimarts": {"in": "9:50", "out": "13:55", "flex": "", "share": "si"}, "dimecres": {"in": "8:55", "out": "13:55", "flex": "", "share": "si"}, "dijous": {"in": "8:00", "out": "13:00", "flex": "", "share": "no"}, "divendres": {"in": "8:00", "out": "13:00", "flex": "13:55", "share": "si"}}}, {"name": "Ferran", "active": true, "days": {"dilluns": {"in": "8:55", "out": "13:00", "flex": "", "share": "si"}, "dimarts": {"in": "9:50", "out": "13:55", "flex": "", "share": "si"}, "dimecres": {"in": "9:50", "out": "13:55", "flex": "", "share": "si"}, "dijous": {"in": "8:55", "out": "15:05", "flex": "", "share": "si"}, "divendres": {"in": "8:00", "out": "13:55", "flex": "", "share": "si"}}}, {"name": "Glòria", "active": true, "days": {"dilluns": {"in": "9:50", "out": "13:55", "flex": "", "share": "si"}, "dimarts": {"in": "8:00", "out": "15:05", "flex": "", "share": "si"}, "dimecres": {"in": "11:10", "out": "13:55", "flex": "", "share": "no"}, "dijous": {"in": "8:00", "out": "15:05", "flex": "", "share": "si"}, "divendres": {"in": "8:00", "out": "12:05", "flex": "", "share": "si"}}}, {"name": "Hug", "active": true, "days": {"dilluns": {"in": "8:55", "out": "13:55", "flex": "", "share": "si"}, "dimarts": {"in": "11:10", "out": "15:05", "flex": "", "share": "si"}, "dimecres": {"in": "8:00", "out": "13:55", "flex": "", "share": "si"}, "dijous": {"in": "11:10", "out": "15:05", "flex": "", "share": "si"}, "divendres": {"in": "8:55", "out": "13:55", "flex": "", "share": "si"}}}, {"name": "Iris", "active": true, "days": {"dilluns": {"in": "9:50", "out": "13:55", "flex": "", "share": "si"}, "dimarts": {"in": "8:00", "out": "15:05", "flex": "", "share": "si"}, "dimecres": {"in": "8:00", "out": "13:55", "flex": "", "share": "si"}, "dijous": {"in": "8:00", "out": "12:05", "flex": "", "share": "si"}, "divendres": {"in": "8:00", "out": "12:05", "flex": "", "share": "si"}}}, {"name": "Joan", "active": true, "days": {"dilluns": {"in": "8:00", "out": "13:55", "flex": "", "share": "si"}, "dimarts": {"in": "8:55", "out": "15:05", "flex": "", "share": "si"}, "dimecres": {"in": "8:55", "out": "13:55", "flex": "", "share": "si"}, "dijous": {"in": "8:55", "out": "13:55", "flex": "", "share": "si"}, "divendres": {"in": "9:50", "out": "13:55", "flex": "", "share": "no"}}}, {"name": "Lluc", "active": true, "days": {"dimarts": {"in": "8:00", "out": "13:00", "flex": "", "share": "si"}, "dijous": {"in": "8:00", "out": "13:55", "flex": "", "share": "si"}, "divendres": {"in": "8:55", "out": "13:00", "flex": "", "share": "no"}}}, {"name": "Mireia", "active": true, "days": {"dilluns": {"in": "8:00", "out": "12:05", "flex": "", "share": "no"}, "dimarts": {"in": "11:10", "out": "15:05", "flex": "", "share": "si"}, "dimecres": {"in": "9:50", "out": "13:55", "flex": "", "share": "si"}, "dijous": {"in": "8:55", "out": "15:05", "flex": "", "share": "si"}, "divendres": {"in": "8:55", "out": "13:55", "flex": "", "share": "si"}}}, {"name": "Neus", "active": true, "days": {"dilluns": {"in": "8:55", "out": "15:05", "flex": "", "share": "si"}, "dimarts": {"in": "8:00", "out": "13:55", "flex": "", "share": "si"}, "dimecres": {"in": "8:00", "out": "12:05", "flex": "", "share": "si"}, "dijous": {"in": "11:10", "out": "15:05", "flex": "", "share": "si"}, "divendres": {"in": "8:55", "out": "13:55", "flex": "", "share": "si"}}}, {"name": "Ot", "active": true, "days": {"dilluns": {"in": "8:00", "out": "13:00", "flex": "", "share": "si"}, "dimarts": {"in": "8:55", "out": "13:55", "flex": "", "share": "si"}, "dimecres": {"in": "8:00", "out": "13:00", "flex": "", "share": "si"}, "dijous": {"in": "8:00", "out": "13:55", "flex": "", "share": "si"}, "divendres": {"in": "8:00", "out": "13:55", "flex": "", "share": "si"}}}, {"name": "Pau", "active": true, "days": {"dilluns": {"in": "8:00", "out": "13:55", "flex": "", "share": "si"}, "dimecres": {"in": "8:00", "out": "13:00", "flex": "", "share": "si"}, "divendres": {"in": "8:55", "out": "13:55", "flex": "", "share": "si"}}}]};
+const SEED = {"capacity": 4, "sample": true, "people": [{"name": "Aina", "active": true, "days": {"dilluns": {"in": "8:00", "out": "13:00", "flex": "", "mark": "auto"}, "dimarts": {"in": "8:00", "out": "13:55", "flex": "", "mark": "auto"}, "dimecres": {"in": "8:00", "out": "13:55", "flex": "", "mark": "auto"}, "dijous": {"in": "8:55", "out": "13:55", "flex": "", "mark": "auto"}, "divendres": {"in": "8:00", "out": "12:05", "flex": "", "mark": "auto"}}}, {"name": "Biel", "active": true, "days": {"dilluns": {"in": "8:55", "out": "13:55", "flex": "", "mark": "auto"}, "dimarts": {"in": "8:00", "out": "13:55", "flex": "", "mark": "auto"}, "dimecres": {"in": "8:00", "out": "13:55", "flex": "", "mark": "auto"}, "dijous": {"in": "8:00", "out": "10:45", "flex": "", "mark": "auto"}, "divendres": {"in": "8:55", "out": "13:55", "flex": "", "mark": "auto"}}}, {"name": "Carme", "active": true, "days": {"dilluns": {"in": "8:00", "out": "13:55", "flex": "", "mark": "auto"}, "dimarts": {"in": "8:00", "out": "12:05", "flex": "", "mark": "solo"}, "dimecres": {"in": "8:00", "out": "12:05", "flex": "", "mark": "auto"}, "dijous": {"in": "8:00", "out": "15:05", "flex": "", "mark": "auto"}, "divendres": {"in": "11:10", "out": "13:55", "flex": "", "mark": "solo"}}}, {"name": "Dídac", "active": true, "days": {"dilluns": {"in": "8:00", "out": "13:55", "flex": "", "mark": "auto"}, "dimarts": {"in": "9:50", "out": "13:55", "flex": "", "mark": "auto"}, "dimecres": {"in": "8:55", "out": "13:55", "flex": "", "mark": "auto"}, "dijous": {"in": "8:00", "out": "12:05", "flex": "", "mark": "auto"}, "divendres": {"in": "8:00", "out": "13:55", "flex": "", "mark": "auto"}}}, {"name": "Empar", "active": true, "days": {"dilluns": {"in": "8:00", "out": "13:55", "flex": "", "mark": "auto"}, "dimarts": {"in": "9:50", "out": "13:55", "flex": "", "mark": "auto"}, "dimecres": {"in": "8:55", "out": "13:55", "flex": "", "mark": "auto"}, "dijous": {"in": "8:00", "out": "13:00", "flex": "", "mark": "solo"}, "divendres": {"in": "8:00", "out": "13:00", "flex": "13:55", "mark": "auto"}}}, {"name": "Ferran", "active": true, "days": {"dilluns": {"in": "8:55", "out": "13:00", "flex": "", "mark": "auto"}, "dimarts": {"in": "9:50", "out": "13:55", "flex": "", "mark": "auto"}, "dimecres": {"in": "9:50", "out": "13:55", "flex": "", "mark": "auto"}, "dijous": {"in": "8:55", "out": "15:05", "flex": "", "mark": "auto"}, "divendres": {"in": "8:00", "out": "13:55", "flex": "", "mark": "auto"}}}, {"name": "Glòria", "active": true, "days": {"dilluns": {"in": "9:50", "out": "13:55", "flex": "", "mark": "auto"}, "dimarts": {"in": "8:00", "out": "15:05", "flex": "", "mark": "auto"}, "dimecres": {"in": "11:10", "out": "13:55", "flex": "", "mark": "solo"}, "dijous": {"in": "8:00", "out": "15:05", "flex": "", "mark": "auto"}, "divendres": {"in": "8:00", "out": "12:05", "flex": "", "mark": "auto"}}}, {"name": "Hug", "active": true, "days": {"dilluns": {"in": "8:55", "out": "13:55", "flex": "", "mark": "auto"}, "dimarts": {"in": "11:10", "out": "15:05", "flex": "", "mark": "auto"}, "dimecres": {"in": "8:00", "out": "13:55", "flex": "", "mark": "auto"}, "dijous": {"in": "11:10", "out": "15:05", "flex": "", "mark": "auto"}, "divendres": {"in": "8:55", "out": "13:55", "flex": "", "mark": "auto"}}}, {"name": "Iris", "active": true, "days": {"dilluns": {"in": "9:50", "out": "13:55", "flex": "", "mark": "auto"}, "dimarts": {"in": "8:00", "out": "15:05", "flex": "", "mark": "auto"}, "dimecres": {"in": "8:00", "out": "13:55", "flex": "", "mark": "auto"}, "dijous": {"in": "8:00", "out": "12:05", "flex": "", "mark": "auto"}, "divendres": {"in": "8:00", "out": "12:05", "flex": "", "mark": "auto"}}}, {"name": "Joan", "active": true, "days": {"dilluns": {"in": "8:00", "out": "13:55", "flex": "", "mark": "auto"}, "dimarts": {"in": "8:55", "out": "15:05", "flex": "", "mark": "auto"}, "dimecres": {"in": "8:55", "out": "13:55", "flex": "", "mark": "auto"}, "dijous": {"in": "8:55", "out": "13:55", "flex": "", "mark": "auto"}, "divendres": {"in": "9:50", "out": "13:55", "flex": "", "mark": "solo"}}}, {"name": "Lluc", "active": true, "days": {"dimarts": {"in": "8:00", "out": "13:00", "flex": "", "mark": "auto"}, "dijous": {"in": "8:00", "out": "13:55", "flex": "", "mark": "auto"}, "divendres": {"in": "8:55", "out": "13:00", "flex": "", "mark": "solo"}}}, {"name": "Mireia", "active": true, "days": {"dilluns": {"in": "8:00", "out": "12:05", "flex": "", "mark": "solo"}, "dimarts": {"in": "11:10", "out": "15:05", "flex": "", "mark": "auto"}, "dimecres": {"in": "9:50", "out": "13:55", "flex": "", "mark": "auto"}, "dijous": {"in": "8:55", "out": "15:05", "flex": "", "mark": "auto"}, "divendres": {"in": "8:55", "out": "13:55", "flex": "", "mark": "auto"}}}, {"name": "Neus", "active": true, "days": {"dilluns": {"in": "8:55", "out": "15:05", "flex": "", "mark": "auto"}, "dimarts": {"in": "8:00", "out": "13:55", "flex": "", "mark": "auto"}, "dimecres": {"in": "8:00", "out": "12:05", "flex": "", "mark": "auto"}, "dijous": {"in": "11:10", "out": "15:05", "flex": "", "mark": "auto"}, "divendres": {"in": "8:55", "out": "13:55", "flex": "", "mark": "auto"}}}, {"name": "Ot", "active": true, "days": {"dilluns": {"in": "8:00", "out": "13:00", "flex": "", "mark": "auto"}, "dimarts": {"in": "8:55", "out": "13:55", "flex": "", "mark": "auto"}, "dimecres": {"in": "8:00", "out": "13:00", "flex": "", "mark": "auto"}, "dijous": {"in": "8:00", "out": "13:55", "flex": "", "mark": "auto"}, "divendres": {"in": "8:00", "out": "13:55", "flex": "", "mark": "auto"}}}, {"name": "Pau", "active": true, "days": {"dilluns": {"in": "8:00", "out": "13:55", "flex": "", "mark": "auto"}, "dimecres": {"in": "8:00", "out": "13:00", "flex": "", "mark": "auto"}, "divendres": {"in": "8:55", "out": "13:55", "flex": "", "mark": "auto"}}}]};
 const DAYS = ["dilluns","dimarts","dimecres","dijous","divendres"];
 const KEY = "cotxa.state.v1";
+const MARKS = ["auto","drive","pax","solo"];
+const MARK_LABEL = {auto:"Auto", drive:"Conduce", pax:"Paquete", solo:"No comparte"};
+// Marca por persona y día: auto (decide la app) · drive (conduce sí o sí) · pax (paquete: nunca conduce) · solo (no comparte).
+// Los JSON antiguos sólo traían share:"si"/"no"; se convierten al cargar.
+function normalize(st){
+  for(const p of st.people||[]){ p.days??={}; for(const d of DAYS){ const x=p.days[d]; if(!x) continue;
+    if(!MARKS.includes(x.mark)) x.mark = x.share==="no" ? "solo" : "auto"; delete x.share; } }
+  return st;
+}
 
 // ---------- estado ----------
 let state = load();
 function load(){
-  try{ const s = localStorage.getItem(KEY); if(s) return JSON.parse(s); }catch(e){}
-  return structuredClone(SEED);
+  try{ const s = localStorage.getItem(KEY); if(s) return normalize(JSON.parse(s)); }catch(e){}
+  return normalize(structuredClone(SEED));
 }
 function save(){ try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(e){} }
-function blankDays(){ const d={}; for(const k of DAYS) d[k]={in:"",out:"",flex:"",share:"si"}; return d; }
+function blankDays(){ const d={}; for(const k of DAYS) d[k]={in:"",out:"",flex:"",mark:"auto"}; return d; }
 
 // ---------- solver (port de src/cotxa/solver.py) ----------
 function normTime(t){ t=(t||"").trim().replace(".",":").replace(",",":"); if(!t) return ""; const m=t.match(/^(\d{1,2}):?(\d{2})$/); if(!m) return t; return `${+m[1]}:${m[2]}`; }
@@ -158,7 +173,7 @@ function solve(st){
       const tin=normTime(h.in), tout=normTime(h.out);
       if(!tin && !tout) continue;
       if(!tin || !tout){ warnings.push(`${p.name}, ${d}: falta la hora de entrada o de salida`); continue; }
-      trips.push({person:p.name, day:d, in:tin, out:tout, flex:normTime(h.flex), share:h.share!=="no"});
+      trips.push({person:p.name, day:d, in:tin, out:tout, flex:normTime(h.flex), mark:h.mark||"auto", share:h.mark!=="solo"});
     }
   }
   // flex: si saldría sola pero acepta esperar y a la hora flexible hay gente, se mueve
@@ -166,17 +181,21 @@ function solve(st){
   for(const t of trips){
     if(t.share && t.flex && cnt[t.day+"|"+t.out]===1 && (cnt[t.day+"|"+t.flex]||0)>=1){ t.out=t.flex; t.moved=true; }
   }
-  const roles={}, members={}, personSlots={}, sharing={}, driving={};
+  const roles={}, members={}, personSlots={}, sharing={}, driving={}, paxDays={};
+  const locked=new Set(); // marcas manuales: el solver no las toca
   const sk=(day,dir,time)=>`${day}|${dir}|${time}`;
   for(const t of trips){
     const k=t.person+"|"+t.day;
     if(!t.share){ roles[k]="solo"; continue; }
     roles[k]="pasajero";
+    sharing[t.person]=(sharing[t.person]||0)+1; driving[t.person]??=0;
+    if(t.mark==="drive"){ roles[k]="conductor"; driving[t.person]++; locked.add(k); }
+    else if(t.mark==="pax"){ locked.add(k); paxDays[t.person]=(paxDays[t.person]||0)+1; }
     const a=sk(t.day,"entrada",t.in), b=sk(t.day,"salida",t.out);
     (members[a]??=[]).push(t.person); (members[b]??=[]).push(t.person);
     personSlots[k]=[a,b];
-    sharing[t.person]=(sharing[t.person]||0)+1; driving[t.person]??=0;
   }
+  for(const p in paxDays) if(paxDays[p]===sharing[p]) warnings.push(`${p}: marcado 'paquete' todos sus días; no conducirá nunca`);
   const required={}; for(const s in members) required[s]=Math.ceil(members[s].length/cap);
   const dayOf=s=>s.split("|")[0];
   const driversIn=s=>members[s].filter(p=>roles[p+"|"+dayOf(s)]==="conductor").length;
@@ -190,7 +209,7 @@ function solve(st){
     for(const s in members){ const d=deficit(s); if(d>best){best=d;slot=s;} }
     if(!slot || best<=0) break;
     const day=dayOf(slot);
-    const cands=members[slot].filter(p=>roles[p+"|"+day]==="pasajero");
+    const cands=members[slot].filter(p=>roles[p+"|"+day]==="pasajero" && !locked.has(p+"|"+day));
     if(!cands.length){ warnings.push(`${slot.replace(/\|/g," ")}: faltan conductores (${driversIn(slot)} coches para ${members[slot].length} personas)`); required[slot]=driversIn(slot); continue; }
     cands.sort((p,q)=>{
       const sp=driving[p]/sharing[p], sq=driving[q]/sharing[q]; if(sp!==sq) return sp-sq;
@@ -205,13 +224,13 @@ function solve(st){
   while(improved && guard++<500){
     improved=false; const base=fairness();
     outer: for(const k of Object.keys(roles)){
-      if(roles[k]!=="conductor") continue;
+      if(roles[k]!=="conductor" || locked.has(k)) continue;
       const [p,day]=k.split("|");
       roles[k]="pasajero"; driving[p]--;
       if(feasible() && fairness()<=base){ improved=true; break; }
       const pool=new Set(); for(const s of personSlots[k]) for(const m of members[s]) pool.add(m);
       for(const q of pool){
-        if(q===p || roles[q+"|"+day]!=="pasajero") continue;
+        if(q===p || roles[q+"|"+day]!=="pasajero" || locked.has(q+"|"+day)) continue;
         roles[q+"|"+day]="conductor"; driving[q]++;
         if(feasible() && fairness()<base-1e-9){ improved=true; break outer; }
         roles[q+"|"+day]="pasajero"; driving[q]--;
@@ -219,7 +238,17 @@ function solve(st){
       roles[k]="conductor"; driving[p]++;
     }
   }
-  // 3. coches
+  // 3. coches y "también podrían"
+  const ratios=Object.keys(sharing).map(p=>driving[p]/sharing[p]);
+  const meanRatio=ratios.length?ratios.reduce((a,b)=>a+b,0)/ratios.length:0;
+  const couldDrive=(q,p,day)=>{ // ¿podría q llevar el coche en lugar de p sin pasarse de lo que le toca?
+    if(locked.has(q+"|"+day)) return false;
+    if(driving[q]+1>Math.ceil(meanRatio*sharing[q]-1e-9)) return false;
+    roles[p+"|"+day]="pasajero"; roles[q+"|"+day]="conductor";
+    const ok=feasible();
+    roles[p+"|"+day]="conductor"; roles[q+"|"+day]="pasajero";
+    return ok;
+  };
   const cars=[];
   const slots=Object.keys(members).sort((a,b)=>{const A=a.split("|"),B=b.split("|"); return DAYS.indexOf(A[0])-DAYS.indexOf(B[0])||A[1].localeCompare(B[1])||mins(A[2])-mins(B[2]);});
   for(const s of slots){
@@ -227,11 +256,12 @@ function solve(st){
     const drv=members[s].filter(p=>roles[p+"|"+day]==="conductor").sort();
     const pax=members[s].filter(p=>roles[p+"|"+day]==="pasajero").sort();
     if(!drv.length){ warnings.push(`${day} ${dir} ${time}: nadie puede conducir (${pax.join(", ")})`); continue; }
-    const sc=drv.map(d=>({day,dir,time,driver:d,passengers:[]}));
+    const sc=drv.map(d=>({day,dir,time,driver:d,passengers:[],alternatives:[]}));
     pax.forEach((p,i)=>{ const c=sc[i%sc.length]; if(c.passengers.length+1>=cap) warnings.push(`${day} ${dir} ${time}: ${p} no cabe`); c.passengers.push(p); });
+    for(const c of sc) c.alternatives=c.passengers.filter(q=>couldDrive(q,c.driver,day));
     cars.push(...sc);
   }
-  return {roles, cars, sharing, driving, trips, warnings, cap};
+  return {roles, cars, sharing, driving, trips, warnings, cap, locked};
 }
 
 // ---------- UI: horarios ----------
@@ -242,17 +272,17 @@ function renderTable(){
   let h=`<thead><tr><th>Persona</th><th>Activa</th>`;
   for(const d of DAYS) h+=`<th class="day" colspan="4">${d}</th>`;
   h+=`<th></th></tr><tr><th></th><th></th>`;
-  for(const d of DAYS) h+=`<th class="day">Entrada</th><th>Salida</th><th>Espera hasta</th><th>Comparte</th>`;
+  for(const d of DAYS) h+=`<th class="day">Entrada</th><th>Salida</th><th>Espera hasta</th><th>Marca</th>`;
   h+=`<th></th></tr></thead><tbody>`;
   state.people.forEach((p,i)=>{
     h+=`<tr class="${p.active?"":"inactive"}"><td><input type="text" data-i="${i}" data-f="name" value="${esc(p.name)}" style="width:110px"></td>`;
     h+=`<td style="text-align:center"><input type="checkbox" data-i="${i}" data-f="active" ${p.active?"checked":""}></td>`;
     for(const d of DAYS){
-      const x=p.days[d]||{in:"",out:"",flex:"",share:"si"}; const off=!x.in&&!x.out;
+      const x=p.days[d]||{in:"",out:"",flex:"",mark:"auto"}; const off=!x.in&&!x.out;
       h+=`<td class="day"><input class="t ${off?"off":""}" type="text" data-i="${i}" data-d="${d}" data-f="in" value="${esc(x.in)}" placeholder="–"></td>`;
       h+=`<td><input class="t ${off?"off":""}" type="text" data-i="${i}" data-d="${d}" data-f="out" value="${esc(x.out)}" placeholder="–"></td>`;
       h+=`<td><input class="t ${off?"off":""}" type="text" data-i="${i}" data-d="${d}" data-f="flex" value="${esc(x.flex)}" placeholder="–"></td>`;
-      h+=`<td style="text-align:center"><input type="checkbox" data-i="${i}" data-d="${d}" data-f="share" ${x.share!=="no"?"checked":""} ${off?"disabled":""}></td>`;
+      h+=`<td><select class="mk" data-i="${i}" data-d="${d}" data-f="mark" ${off?"disabled":""}>${MARKS.map(m=>`<option value="${m}" ${(x.mark||"auto")===m?"selected":""}>${MARK_LABEL[m]}</option>`).join("")}</select></td>`;
     }
     h+=`<td style="white-space:nowrap"><button class="ghost mv" data-mv="${i}" data-dir="-1" title="Subir" ${i===0?"disabled":""}>▲</button> <button class="ghost mv" data-mv="${i}" data-dir="1" title="Bajar" ${i===state.people.length-1?"disabled":""}>▼</button> <button class="ghost danger" data-del="${i}" title="Eliminar">✕</button></td></tr>`;
   });
@@ -267,7 +297,7 @@ $("#tbl").addEventListener("change",e=>{
   delete state.sample; // en cuanto se edita algo ya no son los datos de ejemplo
   if(f==="name") p.name=el.value.trim()||p.name;
   else if(f==="active") p.active=el.checked;
-  else { p.days[d]??={in:"",out:"",flex:"",share:"si"}; if(f==="share") p.days[d].share=el.checked?"si":"no"; else p.days[d][f]=normTime(el.value); }
+  else { p.days[d]??={in:"",out:"",flex:"",mark:"auto"}; if(f==="mark") p.days[d].mark=el.value; else p.days[d][f]=normTime(el.value); }
   save(); renderTable();
 });
 $("#tbl").addEventListener("click",e=>{
@@ -282,7 +312,7 @@ $("#cap").addEventListener("change",e=>{ state.capacity=Math.max(2,+e.target.val
 $("#addPerson").onclick=()=>{ const n=prompt("Nombre"); if(!n) return; state.people.push({name:n.trim(),active:true,days:blankDays()}); save(); renderTable(); };
 $("#export").onclick=()=>{ const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([JSON.stringify(state,null,2)],{type:"application/json"})); a.download=`cotxa-${new Date().toISOString().slice(0,10)}.json`; a.click(); };
 $("#importBtn").onclick=()=>$("#importFile").click();
-$("#importFile").onchange=async e=>{ const f=e.target.files[0]; if(!f) return; try{ const j=JSON.parse(await f.text()); if(!Array.isArray(j.people)) throw 0; delete j.sample; state=j; save(); renderTable(); alert("Datos importados."); }catch{ alert("El archivo no parece un JSON de Cotxà."); } e.target.value=""; };
+$("#importFile").onchange=async e=>{ const f=e.target.files[0]; if(!f) return; try{ const j=JSON.parse(await f.text()); if(!Array.isArray(j.people)) throw 0; delete j.sample; state=normalize(j); save(); renderTable(); alert("Datos importados."); }catch{ alert("El archivo no parece un JSON de Cotxà."); } e.target.value=""; };
 $("#blank").onclick=()=>{ if(confirm("¿Vaciar la tabla para introducir vuestros datos desde cero? (Exporta antes si quieres conservar algo.)")){ state={capacity:4,people:[]}; save(); renderTable(); } };
 $("#reset").onclick=()=>{ if(confirm("¿Volver a los datos iniciales? Se perderán los cambios de este navegador (exporta antes si quieres copia).")){ state=structuredClone(SEED); save(); renderTable(); } };
 
@@ -300,9 +330,11 @@ function renderPlan(){
     for(const d of DAYS){
       const role=r.roles[n+"|"+d]; const t=r.trips.find(x=>x.person===n&&x.day===d);
       if(!t){ g+=`<td class="day"></td>`; continue; }
+      const pin=r.locked.has(n+"|"+d)?" 📌":"";
       const times=`<div class="mini">${t.in} → ${t.out}${t.moved?" ⏳":""}</div>`;
-      if(role==="conductor") g+=`<td class="day c">🚗${times}</td>`;
-      else if(role==="pasajero") g+=`<td class="day p">·${times}</td>`;
+      const click=role==="solo"?"":` class="click" data-n="${esc(n)}" data-d="${d}" title="Clic: Auto → Conduce → Paquete"`;
+      if(role==="conductor") g+=`<td class="day c${click?" click":""}"${click}>🚗${pin}${times}</td>`;
+      else if(role==="pasajero") g+=`<td class="day p${click?" click":""}"${click}>${t.mark==="pax"?"○":"·"}${pin}${times}</td>`;
       else g+=`<td class="day s">—${times}</td>`;
     }
     g+=`<td style="text-align:center">${r.driving[n]??0}/${r.sharing[n]??0}</td></tr>`;
@@ -315,7 +347,14 @@ function renderPlan(){
     h+=`<div class="card plan-day"><h2>${d}</h2>`;
     for(const dir of ["entrada","salida"]){
       h+=`<h3>${dir}</h3>`;
-      for(const c of cs.filter(c=>c.dir===dir)) h+=`<div class="car"><span class="time">${c.time}</span><span class="drv">🚗 ${esc(c.driver)}</span><span class="pax">${c.passengers.length?esc(c.passengers.join(", ")):"(solo)"}</span></div>`;
+      for(const c of cs.filter(c=>c.dir===dir)){
+        const pq=c.passengers.filter(p=>!c.alternatives.includes(p));
+        const pin=r.locked.has(c.driver+"|"+d)?" 📌":"";
+        h+=`<div class="car"><span class="time">${c.time}</span><span class="drv">🚗 ${esc(c.driver)}${pin}</span><span class="pax">${c.passengers.length?esc(c.passengers.join(", ")):"(solo)"}</span>`;
+        if(c.alternatives.length) h+=`<span class="alt">también ${c.alternatives.length>1?"podrían":"podría"}: ${esc(c.alternatives.join(", "))}</span>`;
+        if(pq.length&&c.alternatives.length) h+=`<span class="pq">paquete${pq.length>1?"s":""}: ${esc(pq.join(", "))}</span>`;
+        h+=`</div>`;
+      }
     }
     h+=`</div>`;
   }
@@ -326,6 +365,13 @@ function renderPlan(){
     q+=`<tr><td>${esc(n)}</td><td>${dr}</td><td>${sh}</td><td>${sh?pct+"%":"–"}</td><td><div class="bar-eq"><i style="width:${pct}%"></i></div></td></tr>`; }
   $("#eqTbl").innerHTML=q+"</tbody>";
 }
+$("#gridTbl").addEventListener("click",e=>{
+  const td=e.target.closest("td.click"); if(!td) return;
+  const p=state.people.find(x=>x.name===td.dataset.n); if(!p) return;
+  const x=p.days[td.dataset.d]; if(!x) return;
+  x.mark = x.mark==="auto"?"drive" : x.mark==="drive"?"pax" : "auto";
+  delete state.sample; save(); renderTable(); renderPlan();
+});
 
 // ---------- exportar Excel ----------
 let lastResult=null;
@@ -344,16 +390,16 @@ $("#xlsx").onclick=()=>{
   }
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sem), "Semana");
   // 2. Coches
-  const cars=[["Día","Sentido","Hora","Conductor/a","Pasajeros/as","Ocupación"]];
-  for(const c of r.cars) cars.push([c.day,c.dir,c.time,c.driver,c.passengers.join(", "),c.passengers.length+1]);
+  const cars=[["Día","Sentido","Hora","Conductor/a","Pasajeros/as","Ocupación","También podrían","Paquetes"]];
+  for(const c of r.cars) cars.push([c.day,c.dir,c.time,c.driver,c.passengers.join(", "),c.passengers.length+1,c.alternatives.join(", "),c.passengers.filter(p=>!c.alternatives.includes(p)).join(", ")]);
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(cars), "Coches");
   // 3. Equidad
   const eq=[["Persona","Días conduce","Días comparte","%"]];
   for(const n of names){ const dr=r.driving[n]??0, sh=r.sharing[n]??0; eq.push([n,dr,sh,sh?Math.round(100*dr/sh)/100:""]); }
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(eq), "Equidad");
   // 4. Horarios (los datos de entrada, por si hay que reimportarlos)
-  const hor=[["Persona","Activa",...DAYS.flatMap(d=>[d+" entrada",d+" salida",d+" espera hasta",d+" comparte"])]];
-  for(const p of state.people){ const row=[p.name,p.active?"sí":"no"]; for(const d of DAYS){ const x=p.days?.[d]||{}; row.push(x.in||"",x.out||"",x.flex||"",x.share==="no"?"no":"sí"); } hor.push(row); }
+  const hor=[["Persona","Activa",...DAYS.flatMap(d=>[d+" entrada",d+" salida",d+" espera hasta",d+" marca"])]];
+  for(const p of state.people){ const row=[p.name,p.active?"sí":"no"]; for(const d of DAYS){ const x=p.days?.[d]||{}; row.push(x.in||"",x.out||"",x.flex||"",MARK_LABEL[x.mark||"auto"]); } hor.push(row); }
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(hor), "Horarios");
   for(const ws of Object.values(wb.Sheets)){ const w=[]; XLSX.utils.sheet_to_json(ws,{header:1}).forEach(r=>r.forEach((v,i)=>w[i]=Math.max(w[i]||8,String(v??"").length+2))); ws["!cols"]=w.map(wch=>({wch:Math.min(wch,40)})); }
   XLSX.writeFile(wb, `cotxa-reparto-${new Date().toISOString().slice(0,10)}.xlsx`);

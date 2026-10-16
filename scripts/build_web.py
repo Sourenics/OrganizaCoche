@@ -24,10 +24,13 @@ def seed(csv_path: Path, sample: bool) -> dict:
     with open(csv_path, newline="", encoding="utf-8") as f:
         for r in csv.DictReader(f):
             p = people.setdefault(r["persona"], {"name": r["persona"], "active": True, "days": {}})
-            solo = "no_comparte" in (r.get("rol_entrada_v6"), r.get("rol_salida_v6"))
+            # Marca por día: auto · drive (conduce) · pax (paquete) · solo (no comparte)
+            mark = {"conduce": "drive", "paquete": "pax", "no_comparte": "solo"}.get((r.get("marca") or "").strip().lower(), "auto")
+            if mark == "auto" and "no_comparte" in (r.get("rol_entrada_v6"), r.get("rol_salida_v6")):
+                mark = "solo"
             p["days"][r["dia"]] = {
                 "in": r["entrada"], "out": r["salida"],
-                "flex": r.get("salida_flex") or "", "share": "no" if solo else "si",
+                "flex": r.get("salida_flex") or "", "mark": mark,
             }
     for name, c in cfg.get("people", {}).items():
         if name in people and c.get("active") is False:
