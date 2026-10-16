@@ -30,7 +30,7 @@ def seed(csv_path: Path, sample: bool) -> dict:
                 mark = "solo"
             p["days"][r["dia"]] = {
                 "in": r["entrada"], "out": r["salida"],
-                "flex": r.get("salida_flex") or "", "mark": mark,
+                "inflex": r.get("entrada_flex") or "", "flex": r.get("salida_flex") or "", "mark": mark,
             }
     for name, c in cfg.get("people", {}).items():
         if name in people and c.get("active") is False:

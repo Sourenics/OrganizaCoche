@@ -27,6 +27,7 @@ queda corto, el siguiente paso natural es formularlo como ILP/CP-SAT
 from __future__ import annotations
 
 import math
+import re
 from collections import defaultdict
 from dataclasses import dataclass, field
 
@@ -46,24 +47,76 @@ def _slots_for(trip: Trip, zone: str) -> tuple[Slot, Slot]:
     )
 
 
-def _apply_flex(trips: list[Trip], people: dict[str, Person]) -> list[Trip]:
-    """Si alguien saldría solo pero acepta esperar, lo movemos a la hora flexible
-    cuando allí sí hay compañía."""
+_TIME = re.compile(r"^(\d{1,2}):(\d{2})$")
+
+
+def _minutes(t: str) -> int | None:
+    m = _TIME.match(t or "")
+    if not m or int(m.group(1)) > 23 or int(m.group(2)) > 59:
+        return None
+    return int(m.group(1)) * 60 + int(m.group(2))
+
+
+def validate_trip(t: Trip) -> str | None:
+    """Devuelve el motivo por el que las horas de un trayecto son imposibles, o None.
+    Mismos textos que la web (validateDay), para que los avisos coincidan."""
+    for label, v in (("entrada", t.arrival), ("salida", t.departure),
+                     ("entra desde", t.arrival_flex), ("espera hasta", t.departure_flex)):
+        if v and _minutes(v) is None:
+            return f"hora de {label} no válida: «{v}» (usa el formato 8:00)"
+    a, d = _minutes(t.arrival), _minutes(t.departure)
+    if a is None or d is None:
+        return "falta la hora de entrada o de salida"
+    if d <= a:
+        return f"la salida ({t.departure}) no es posterior a la entrada ({t.arrival})"
+    if t.arrival_flex and _minutes(t.arrival_flex) > a:
+        return f"«entra desde» ({t.arrival_flex}) es posterior a la entrada ({t.arrival})"
+    if t.departure_flex and _minutes(t.departure_flex) < d:
+        return f"«espera hasta» ({t.departure_flex}) es anterior a la salida ({t.departure})"
+    return None
+
+
+def _apply_flex(trips: list[Trip], people: dict[str, Person], capacity: int) -> list[Trip]:
+    """Horas flexibles ("entra desde" / "espera hasta"): la persona se mueve a su hora
+    flexible si a su hora propia iría sola y en la flexible hay compañía, o si al moverla
+    hace falta un coche menos en total. Si no, se queda a su hora. Se decide persona a
+    persona, en el orden de los datos, actualizando los recuentos (igual que en la web)."""
     counts: dict[tuple, int] = defaultdict(int)
     for t in trips:
         if t.fixed_role is Role.SOLO or not people[t.person].active:
             continue
-        counts[(t.day, t.departure, people[t.person].zone)] += 1
+        z = people[t.person].zone
+        counts[(t.day, "entrada", t.arrival, z)] += 1
+        counts[(t.day, "salida", t.departure, z)] += 1
+
+    def cars(n: int) -> int:
+        return math.ceil(n / capacity)
+
+    def should_move(day: str, direction: str, own: str, flex: str, z: str) -> bool:
+        if not flex or flex == own:
+            return False
+        a, b = counts[(day, direction, own, z)], counts[(day, direction, flex, z)]
+        alone = a == 1 and b >= 1
+        saves_car = cars(a) + cars(b) > cars(a - 1) + cars(b + 1)
+        return alone or saves_car
+
     out = []
     for t in trips:
+        if t.fixed_role is Role.SOLO or not people[t.person].active:
+            out.append(t)
+            continue
         z = people[t.person].zone
-        if (
-            t.departure_flex
-            and t.fixed_role is not Role.SOLO
-            and counts[(t.day, t.departure, z)] == 1
-            and counts[(t.day, t.departure_flex, z)] >= 1
-        ):
-            t = Trip(t.person, t.day, t.arrival, t.departure_flex, None, t.fixed_role)
+        arrival, departure = t.arrival, t.departure
+        if should_move(t.day, "entrada", arrival, t.arrival_flex, z):
+            counts[(t.day, "entrada", arrival, z)] -= 1
+            arrival = t.arrival_flex
+            counts[(t.day, "entrada", arrival, z)] += 1
+        if should_move(t.day, "salida", departure, t.departure_flex, z):
+            counts[(t.day, "salida", departure, z)] -= 1
+            departure = t.departure_flex
+            counts[(t.day, "salida", departure, z)] += 1
+        if (arrival, departure) != (t.arrival, t.departure):
+            t = Trip(t.person, t.day, arrival, departure, None, t.fixed_role, None)
         out.append(t)
     return out
 
@@ -81,8 +134,16 @@ def solve(
     bias: dict[str, float] | None = None,
 ) -> SolveResult:
     warnings: list[str] = []
-    trips = _apply_flex(trips, people)
     bias = bias or {}
+    # Horas imposibles: ese día de esa persona queda fuera del reparto, con aviso
+    valid: list[Trip] = []
+    for t in trips:
+        problem = validate_trip(t)
+        if problem:
+            warnings.append(f"{t.person}, {t.day}: {problem}")
+        else:
+            valid.append(t)
+    trips = _apply_flex(valid, people, capacity)
 
     roles: dict[tuple[str, str], Role] = {}
     locked: set[tuple[str, str]] = set()  # marcas manuales: el solver no las toca

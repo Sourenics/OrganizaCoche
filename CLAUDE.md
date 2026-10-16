@@ -16,7 +16,10 @@ de coches y repartir la carga de conducir de forma equitativa.
 - Todos salen del mismo punto de encuentro: una sola zona (`zone` existe pero
   no se usa salvo que cambie la situación).
 - Capacidad 4 por defecto (a veces 5: `--capacity 5`).
-- `salida_flex`: la persona acepta salir más tarde si así va acompañada.
+- Horas flexibles: `entrada_flex` ("entra desde", acepta entrar antes) y
+  `salida_flex` ("espera hasta", acepta salir después). La persona se mueve
+  a su hora flexible sólo si a la suya iría sola y en la flexible hay
+  compañía, o si así hace falta un coche menos en total (`_apply_flex`).
 - Tope opcional de días conduciendo/semana por persona (`max_drive`): se
   respeta salvo que sea la única forma de cubrir una franja (se avisa). En la
   web sólo cuenta con el interruptor "Topes de días" encendido.
@@ -24,6 +27,9 @@ de coches y repartir la carga de conducir de forma equitativa.
   **paquete** nunca conduce ese día (pero comparte y cuenta en la equidad).
   El solver no las toca. En cada coche se señala quién más *podría* llevarlo
   sin pasarse de lo que le toca ("también podrían"); el resto son paquetes.
+- Horas imposibles (salida no posterior a la entrada, flex incoherente,
+  formato inválido): ese `(persona, día)` queda fuera del reparto con aviso.
+  `validate_trip()` en Python y `validateDay()` en la web, mismos textos.
 - Equidad = igualar `días conduciendo / días compartiendo` entre personas.
   Alguien que viene 2 días no debe conducir tanto como quien viene 5.
 
@@ -45,7 +51,8 @@ de coches y repartir la carga de conducir de forma equitativa.
 - La función `solve(state)` del JS es un port 1:1 de `solver.py`. Cualquier
   cambio en el algoritmo se hace en los dos sitios.
 - Estado en `localStorage` (clave `cotxa.state.v1`) + exportar/importar JSON.
-  Formato: `{capacity, cycle?:{start,end}, useCaps, people:[{name, active, maxDrive?, days:{dilluns:{in,out,flex,mark}}}]}`.
+  Formato: `{capacity, cycle?:{start,end}, useCaps, people:[{name, active, maxDrive?, days:{dilluns:{in,inflex,out,flex,mark}}}]}`.
+  `inflex` = "entra desde" (acepta entrar antes), `flex` = "espera hasta".
   `printDetail` añade al PDF una 2ª hoja con el detalle (clase `print-detail`
   en `body`); por defecto el PDF es sólo la rejilla V6 (`renderV6`, apaisado).
   `useCaps` es el interruptor "Topes de días"; sólo si está encendido se

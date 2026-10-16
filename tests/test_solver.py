@@ -61,6 +61,52 @@ def test_flex_departure_joins_later_car():
     assert len(exits) == 1 and exits[0].slot.time == "13:55"
 
 
+def test_arrival_flex_joins_earlier_car():
+    # A entraría sola a las 8:55 pero acepta entrar desde las 8:00, donde está B
+    trips = [
+        Trip("A", "dilluns", "8:55", "14:00", arrival_flex="8:00"),
+        Trip("B", "dilluns", "8:00", "14:00"),
+    ]
+    res = solve(trips, _people("A", "B"), capacity=4)
+    entries = [c for c in res.plan.cars if c.slot.direction == "entrada"]
+    assert len(entries) == 1 and entries[0].slot.time == "8:00"
+
+
+def test_flex_moves_when_it_saves_a_car():
+    # Cinco a las 8:00 (2 coches) y una a las 7:50 (1 coche). Si E acepta entrar desde
+    # las 7:50, quedan 4 + 2 → 2 coches en vez de 3, aunque E no iba sola.
+    trips = [Trip(p, "dilluns", "8:00", "14:00") for p in "ABCD"]
+    trips += [Trip("E", "dilluns", "8:00", "14:00", arrival_flex="7:50"), Trip("F", "dilluns", "7:50", "14:00")]
+    res = solve(trips, _people(*"ABCDEF"), capacity=4)
+    entries = [c for c in res.plan.cars if c.slot.direction == "entrada"]
+    assert len(entries) == 2
+    assert any(c.slot.time == "7:50" and "E" in c.occupants for c in entries)
+
+
+def test_flex_stays_when_nothing_is_gained():
+    # Cuatro a las 8:00 (1 coche) y una a las 7:50 (1 coche): mover a D no ahorra nada y no va sola
+    trips = [Trip(p, "dilluns", "8:00", "14:00") for p in "ABC"]
+    trips += [Trip("D", "dilluns", "8:00", "14:00", arrival_flex="7:50"), Trip("F", "dilluns", "7:50", "14:00")]
+    res = solve(trips, _people(*"ABCDF"), capacity=4)
+    assert any(c.slot.time == "8:00" and "D" in c.occupants for c in res.plan.cars)
+
+
+def test_impossible_times_are_skipped_with_warning():
+    trips = [
+        Trip("A", "dilluns", "8:00", "8:00"),                          # salida no posterior
+        Trip("B", "dilluns", "8:00", "14:00", arrival_flex="9:00"),    # entra desde > entrada
+        Trip("C", "dilluns", "8:00", "14:00", departure_flex="13:00"),  # espera hasta < salida
+        Trip("D", "dilluns", "8h", "14:00"),                            # formato
+        Trip("E", "dilluns", "8:00", "14:00"),                          # correcto
+    ]
+    res = solve(trips, _people(*"ABCDE"), capacity=4)
+    assert set(p for p, _ in res.plan.roles) == {"E"}
+    assert any("A, dilluns: la salida (8:00) no es posterior a la entrada (8:00)" in w for w in res.warnings)
+    assert any("B, dilluns: «entra desde» (9:00) es posterior" in w for w in res.warnings)
+    assert any("C, dilluns: «espera hasta» (13:00) es anterior" in w for w in res.warnings)
+    assert any("D, dilluns: hora de entrada no válida: «8h»" in w for w in res.warnings)
+
+
 def test_real_data_is_balanced():
     trips = load_trips(ROOT / "data" / "horaris.sample.csv")
     people = load_people(ROOT / "data" / "config.json", trips)

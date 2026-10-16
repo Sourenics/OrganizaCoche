@@ -69,8 +69,9 @@ paridad lo detecte, ver hoja de ruta).
 ## Cómo funciona
 
 1. **Datos** (`data/horaris.sample.csv`, o tu `data/horaris.csv` local): una fila por persona y día con hora de
-   entrada y de salida. Opcionalmente `salida_flex` (acepta esperar hasta esa
-   hora) y el rol histórico de la V6 (sólo se respeta `no_comparte`).
+   entrada y de salida. Opcionalmente `entrada_flex` / `salida_flex` (horas
+   flexibles: la app mueve a la persona sólo si así no va sola o se ahorra un
+   coche) y el rol histórico de la V6 (sólo se respeta `no_comparte`).
 2. **Franjas**: todas las personas que entran el dilluns a las 8:00 forman la
    franja `(dilluns, entrada, 8:00)`. Cada franja necesita `ceil(n / plazas)`
    coches.
@@ -113,7 +114,8 @@ borrar sus horarios, o ponerle un tope de días conduciendo a la semana con
 | dia | `dilluns` | `dilluns`…`divendres` |
 | entrada | `8:00` | |
 | salida | `13:55` | |
-| salida_flex | `13:55` | opcional: acepta esperar hasta esta hora si así va acompañada |
+| entrada_flex | `8:00` | opcional: acepta entrar antes, desde esta hora, si así va acompañada o se ahorra un coche |
+| salida_flex | `13:55` | opcional: acepta esperar hasta esta hora, con la misma regla |
 | marca | `paquete` | opcional: `conduce` (se fija como conductor/a), `paquete` (nunca conduce ese día) o `no_comparte` |
 | rol_entrada_v6 / rol_salida_v6 | `conductor` | histórico de la hoja; sólo `no_comparte` afecta al solver |
 

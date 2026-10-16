@@ -47,6 +47,7 @@ class Trip:
     #   PASSENGER "paquete": va de pasajero/a seguro, nunca conduce ese día.
     #   SOLO      "no comparte": va por su cuenta, fuera del reparto ese día.
     fixed_role: Role | None = None
+    arrival_flex: str | None = None  # "entra desde": acepta entrar antes, a partir de esta hora
 
     @property
     def key(self) -> tuple[str, str]:

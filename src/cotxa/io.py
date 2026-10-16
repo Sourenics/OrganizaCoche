@@ -35,6 +35,7 @@ def load_trips(path: str | Path) -> list[Trip]:
                     departure=row["salida"],
                     departure_flex=row.get("salida_flex") or None,
                     fixed_role=fixed,
+                    arrival_flex=row.get("entrada_flex") or None,
                 )
             )
     return trips
