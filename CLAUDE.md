@@ -42,7 +42,9 @@ de coches y repartir la carga de conducir de forma equitativa.
 - La función `solve(state)` del JS es un port 1:1 de `solver.py`. Cualquier
   cambio en el algoritmo se hace en los dos sitios.
 - Estado en `localStorage` (clave `cotxa.state.v1`) + exportar/importar JSON.
-  Formato: `{capacity, people:[{name, active, days:{dilluns:{in,out,flex,mark}}}]}`.
+  Formato: `{capacity, cycle?:{start,end}, people:[{name, active, days:{dilluns:{in,out,flex,mark}}}]}`.
+  `cycle` (fechas ISO, opcional) rotula el plan, el PDF y el Excel; sólo
+  existe en la web, el CLI no lo usa.
   `mark` ∈ `auto` (decide el solver) · `drive` (conduce sí o sí) · `pax`
   (paquete: nunca conduce ese día) · `solo` (no comparte). Los JSON antiguos
   traían `share: si/no`; `normalize()` los convierte al cargar/importar.

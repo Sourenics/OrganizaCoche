@@ -84,6 +84,7 @@
   <section id="tab-horaris">
     <div class="bar">
       <label>Plazas por coche <input id="cap" type="number" min="2" max="9" class="t"></label>
+      <label title="Periodo durante el que se repite este reparto">Ciclo del <input id="cycStart" type="date"> al <input id="cycEnd" type="date"></label>
       <button class="ghost" id="addPerson">+ Añadir persona</button>
       <button class="ghost" id="blank">Empezar de cero</button>
       <span style="flex:1"></span>
@@ -104,6 +105,7 @@
         <b>Marca</b>: <i>Auto</i> deja que la app decida; <i>Conduce</i> fija a esa persona como conductora ese día;
         <i>Paquete</i> va de pasajera seguro (nunca conduce ese día, pero sí comparte); <i>No comparte</i> va por su cuenta.
         Una persona <b>inactiva</b> queda fuera de la rueda sin perder sus horarios.
+        <b>Ciclo</b>: fechas entre las que se repite este reparto; salen en el rótulo, el PDF y el Excel.
         Con <b>▲ ▼</b> cambias el orden de la lista; el reparto y el Excel lo respetan.
         Los cambios se guardan automáticamente en este navegador; usa <b>Exportar</b> para tener copia y <b>Importar</b> para recuperarla en otro dispositivo.
       </p>
@@ -112,7 +114,7 @@
   </section>
 
   <section id="tab-pla" class="hidden">
-    <div id="printTitle" class="hidden" style="margin-bottom:10px"><h1 style="margin:0;font-size:20px">Cotxà · Reparto semanal</h1><div class="mini" id="printDate"></div></div>
+    <div id="printTitle" class="hidden" style="margin-bottom:10px"><h1 style="margin:0;font-size:20px">Cotxà · Reparto semanal</h1><div id="printCycle" style="font-size:14px;margin-top:2px"></div><div class="mini" id="printDate"></div></div>
     <div class="bar noprint">
       <button class="primary" id="go2">Recalcular</button>
       <button class="ghost" id="xlsx">Descargar Excel</button>
@@ -156,6 +158,24 @@ function load(){
 }
 function save(){ try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(e){} }
 function blankDays(){ const d={}; for(const k of DAYS) d[k]={in:"",out:"",flex:"",mark:"auto"}; return d; }
+
+// ---------- ciclo (periodo en que se repite el reparto) ----------
+const isoToDate=s=>{ const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(s||""); return m?new Date(+m[1],+m[2]-1,+m[3]):null; };
+const fmtDate=(d,withYear=true)=>d.toLocaleDateString("es-ES",{day:"numeric",month:"long",...(withYear?{year:"numeric"}:{})});
+function cycleInfo(){
+  const c=state.cycle||{}; const a=isoToDate(c.start), b=isoToDate(c.end);
+  if(!a&&!b) return {label:"",weeks:0,error:""};
+  if(!a||!b) return {label:"",weeks:0,error:"Indica las dos fechas del ciclo (inicio y fin) en Horarios."};
+  if(b<a) return {label:"",weeks:0,error:"La fecha de fin del ciclo es anterior a la de inicio."};
+  const weeks=Math.max(1,Math.round((b-a)/864e5/7));
+  const sameYear=a.getFullYear()===b.getFullYear();
+  return {label:`del ${fmtDate(a,!sameYear)} al ${fmtDate(b)}`, weeks, error:"", start:c.start, end:c.end};
+}
+function renderCycle(){
+  const ci=cycleInfo();
+  $("#season").textContent = ci.label ? `Reparto ${ci.label}` : "Reparto de coche compartido";
+  $("#printCycle").textContent = ci.label ? `Ciclo ${ci.label} · ${ci.weeks} semana${ci.weeks>1?"s":""}` : "";
+}
 
 // ---------- solver (port de src/cotxa/solver.py) ----------
 function normTime(t){ t=(t||"").trim().replace(".",":").replace(",",":"); if(!t) return ""; const m=t.match(/^(\d{1,2}):?(\d{2})$/); if(!m) return t; return `${+m[1]}:${m[2]}`; }
@@ -288,7 +308,9 @@ function renderTable(){
   });
   t.innerHTML=h+"</tbody>";
   $("#cap").value=state.capacity;
+  $("#cycStart").value=state.cycle?.start||""; $("#cycEnd").value=state.cycle?.end||"";
   $("#sampleNote").classList.toggle("hidden", !state.sample);
+  renderCycle();
 }
 function esc(s){ return String(s??"").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;"); }
 $("#tbl").addEventListener("change",e=>{
@@ -309,6 +331,11 @@ $("#tbl").addEventListener("click",e=>{
   if(confirm(`¿Eliminar a ${p.name} y sus horarios? (Si es temporal, mejor desmarca "Activa".)`)){ state.people.splice(+b.dataset.del,1); save(); renderTable(); }
 });
 $("#cap").addEventListener("change",e=>{ state.capacity=Math.max(2,+e.target.value||4); save(); });
+for(const id of ["cycStart","cycEnd"]) $("#"+id).addEventListener("change",()=>{
+  state.cycle={start:$("#cycStart").value||"", end:$("#cycEnd").value||""};
+  if(!state.cycle.start&&!state.cycle.end) delete state.cycle;
+  save(); renderCycle();
+});
 $("#addPerson").onclick=()=>{ const n=prompt("Nombre"); if(!n) return; state.people.push({name:n.trim(),active:true,days:blankDays()}); save(); renderTable(); };
 $("#export").onclick=()=>{ const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([JSON.stringify(state,null,2)],{type:"application/json"})); a.download=`cotxa-${new Date().toISOString().slice(0,10)}.json`; a.click(); };
 $("#importBtn").onclick=()=>$("#importFile").click();
@@ -320,8 +347,10 @@ $("#reset").onclick=()=>{ if(confirm("¿Volver a los datos iniciales? Se perder�
 function renderPlan(){
   const r=solve(state); lastResult=r;
   $("#printDate").textContent="Generado el "+new Date().toLocaleDateString("es-ES",{day:"numeric",month:"long",year:"numeric"});
-  $("#planMeta").textContent=`${r.cars.length} coches/semana · ${r.cap} plazas · ${Object.keys(r.sharing).length} personas en la rueda`;
-  $("#warnings").innerHTML=r.warnings.length?`<div class="card"><b>Avisos</b>${r.warnings.map(w=>`<div class="warn">${esc(w)}</div>`).join("")}</div>`:"";
+  const ci=cycleInfo(); renderCycle();
+  $("#planMeta").textContent=`${r.cars.length} coches/semana · ${r.cap} plazas · ${Object.keys(r.sharing).length} personas en la rueda`+(ci.label?` · ciclo ${ci.label} (${ci.weeks} sem.)`:"");
+  const warns=[...(ci.error?[ci.error]:[]), ...r.warnings];
+  $("#warnings").innerHTML=warns.length?`<div class="card"><b>Avisos</b>${warns.map(w=>`<div class="warn">${esc(w)}</div>`).join("")}</div>`:"";
   // rejilla
   const names=activeNames();
   let g=`<thead><tr><th>Persona</th>${DAYS.map(d=>`<th class="day">${d}</th>`).join("")}<th>Conduce</th></tr></thead><tbody>`;
@@ -381,7 +410,10 @@ $("#xlsx").onclick=()=>{
   const names=activeNames();
   const wb=XLSX.utils.book_new();
   // 1. Semana: persona x día, igual que la rejilla
-  const sem=[["Persona",...DAYS,"Conduce","Comparte"]];
+  const ci=cycleInfo();
+  const sem=[];
+  if(ci.label) sem.push([`Ciclo ${ci.label}`, `${ci.weeks} semanas`], []);
+  sem.push(["Persona",...DAYS,"Conduce","Comparte"]);
   for(const n of names){
     const row=[n];
     for(const d of DAYS){ const role=r.roles[n+"|"+d], t=r.trips.find(x=>x.person===n&&x.day===d);
@@ -402,7 +434,7 @@ $("#xlsx").onclick=()=>{
   for(const p of state.people){ const row=[p.name,p.active?"sí":"no"]; for(const d of DAYS){ const x=p.days?.[d]||{}; row.push(x.in||"",x.out||"",x.flex||"",MARK_LABEL[x.mark||"auto"]); } hor.push(row); }
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(hor), "Horarios");
   for(const ws of Object.values(wb.Sheets)){ const w=[]; XLSX.utils.sheet_to_json(ws,{header:1}).forEach(r=>r.forEach((v,i)=>w[i]=Math.max(w[i]||8,String(v??"").length+2))); ws["!cols"]=w.map(wch=>({wch:Math.min(wch,40)})); }
-  XLSX.writeFile(wb, `cotxa-reparto-${new Date().toISOString().slice(0,10)}.xlsx`);
+  XLSX.writeFile(wb, `cotxa-reparto-${ci.start?ci.start+"_"+ci.end:new Date().toISOString().slice(0,10)}.xlsx`);
 };
 
 // ---------- pestañas ----------

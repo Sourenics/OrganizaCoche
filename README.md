@@ -32,7 +32,9 @@ Cada persona y día lleva una **marca**: *Auto* (decide la app), *Conduce*
 (se fija como conductor/a), *Paquete* (va de pasajero/a seguro) o *No
 comparte*. En el reparto, cada coche indica quién más **también podría**
 llevarlo sin pasarse de lo que le toca, como en la V6; un clic en la vista
-semanal alterna Auto → Conduce → Paquete y recalcula.
+semanal alterna Auto → Conduce → Paquete y recalcula. Las fechas del
+**ciclo** (periodo en que se repite el reparto, normalmente un trimestre) se
+indican en Horarios y salen en el rótulo, el PDF y el Excel.
 La librería de Excel (SheetJS) va incluida en `docs/vendor/`, así que la app
 funciona sin conexión y sin depender de terceros.
 Los datos se guardan en el navegador y se pueden **exportar/importar** en JSON
