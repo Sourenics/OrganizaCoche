@@ -28,6 +28,8 @@
   button.primary{background:var(--accent);color:var(--accent-ink);border:0;padding:9px 16px;border-radius:8px;font-size:15px;cursor:pointer;font-weight:600}
   button.ghost{background:var(--card);border:1px solid var(--line);color:var(--ink);padding:8px 12px;border-radius:8px;cursor:pointer;font-size:14px}
   button.danger{color:var(--warn)}
+  button.mv{padding:3px 6px;font-size:11px;line-height:1}
+  button.mv:disabled{opacity:.3;cursor:default}
   input[type=text],input[type=number],select{font:inherit;padding:5px 6px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink)}
   input.t{width:62px;text-align:center}
   input.t.off{opacity:.35}
@@ -97,6 +99,7 @@
         Horas en formato <b>8:00</b>. Deja entrada y salida vacías si ese día no viene.
         <b>Espera hasta</b>: hora máxima a la que acepta salir si así va acompañada.
         <b>Comparte</b>: desmarca si ese día va por su cuenta. Una persona <b>inactiva</b> queda fuera de la rueda sin perder sus horarios.
+        Con <b>▲ ▼</b> cambias el orden de la lista; el reparto y el Excel lo respetan.
         Los cambios se guardan automáticamente en este navegador; usa <b>Exportar</b> para tener copia y <b>Importar</b> para recuperarla en otro dispositivo.
       </p>
     </div>
@@ -233,6 +236,7 @@ function solve(st){
 
 // ---------- UI: horarios ----------
 const $=s=>document.querySelector(s);
+const activeNames=()=>state.people.filter(p=>p.active).map(p=>p.name); // en el orden de la tabla
 function renderTable(){
   const t=$("#tbl");
   let h=`<thead><tr><th>Persona</th><th>Activa</th>`;
@@ -250,7 +254,7 @@ function renderTable(){
       h+=`<td><input class="t ${off?"off":""}" type="text" data-i="${i}" data-d="${d}" data-f="flex" value="${esc(x.flex)}" placeholder="–"></td>`;
       h+=`<td style="text-align:center"><input type="checkbox" data-i="${i}" data-d="${d}" data-f="share" ${x.share!=="no"?"checked":""} ${off?"disabled":""}></td>`;
     }
-    h+=`<td><button class="ghost danger" data-del="${i}" title="Eliminar">✕</button></td></tr>`;
+    h+=`<td style="white-space:nowrap"><button class="ghost mv" data-mv="${i}" data-dir="-1" title="Subir" ${i===0?"disabled":""}>▲</button> <button class="ghost mv" data-mv="${i}" data-dir="1" title="Bajar" ${i===state.people.length-1?"disabled":""}>▼</button> <button class="ghost danger" data-del="${i}" title="Eliminar">✕</button></td></tr>`;
   });
   t.innerHTML=h+"</tbody>";
   $("#cap").value=state.capacity;
@@ -267,6 +271,9 @@ $("#tbl").addEventListener("change",e=>{
   save(); renderTable();
 });
 $("#tbl").addEventListener("click",e=>{
+  const m=e.target.closest("[data-mv]");
+  if(m){ const i=+m.dataset.mv, j=i+(+m.dataset.dir); if(j<0||j>=state.people.length) return;
+    [state.people[i],state.people[j]]=[state.people[j],state.people[i]]; delete state.sample; save(); renderTable(); return; }
   const b=e.target.closest("[data-del]"); if(!b) return;
   const p=state.people[+b.dataset.del];
   if(confirm(`¿Eliminar a ${p.name} y sus horarios? (Si es temporal, mejor desmarca "Activa".)`)){ state.people.splice(+b.dataset.del,1); save(); renderTable(); }
@@ -286,7 +293,7 @@ function renderPlan(){
   $("#planMeta").textContent=`${r.cars.length} coches/semana · ${r.cap} plazas · ${Object.keys(r.sharing).length} personas en la rueda`;
   $("#warnings").innerHTML=r.warnings.length?`<div class="card"><b>Avisos</b>${r.warnings.map(w=>`<div class="warn">${esc(w)}</div>`).join("")}</div>`:"";
   // rejilla
-  const names=state.people.filter(p=>p.active).map(p=>p.name).sort((a,b)=>a.localeCompare(b));
+  const names=activeNames();
   let g=`<thead><tr><th>Persona</th>${DAYS.map(d=>`<th class="day">${d}</th>`).join("")}<th>Conduce</th></tr></thead><tbody>`;
   for(const n of names){
     g+=`<tr><td><b>${esc(n)}</b></td>`;
@@ -325,7 +332,7 @@ let lastResult=null;
 $("#xlsx").onclick=()=>{
   if(typeof XLSX==="undefined"){ alert("La librería de Excel no ha cargado (¿sin conexión?). Prueba de nuevo o usa Guardar PDF."); return; }
   const r=lastResult||solve(state);
-  const names=state.people.filter(p=>p.active).map(p=>p.name).sort((a,b)=>a.localeCompare(b));
+  const names=activeNames();
   const wb=XLSX.utils.book_new();
   // 1. Semana: persona x día, igual que la rejilla
   const sem=[["Persona",...DAYS,"Conduce","Comparte"]];

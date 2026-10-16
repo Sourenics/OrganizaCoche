@@ -90,6 +90,16 @@ def test_build_web_embeds_seed(tmp_path, monkeypatch):
     assert "__SEED__" not in (ROOT / "docs" / "index.html").read_text(encoding="utf-8")
 
 
+def test_docs_matches_template():
+    """docs/index.html (lo publicado) debe estar regenerado tras cada cambio en la plantilla."""
+    import re
+    tpl = (ROOT / "web" / "index.template.html").read_text(encoding="utf-8")
+    html = (ROOT / "docs" / "index.html").read_text(encoding="utf-8")
+    m = re.search(r"const SEED = (.*);", html)
+    assert m, "docs/index.html no contiene los datos incrustados"
+    assert html.replace(m.group(1), "__SEED__") == tpl, "ejecuta: python scripts/build_web.py"
+
+
 def test_no_real_data_in_repo():
     """Los nombres reales no deben aparecer en nada que se publique."""
     assert not (ROOT / "data" / "horaris.csv").exists()

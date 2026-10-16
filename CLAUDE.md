@@ -69,3 +69,33 @@ con la misma hora = varios coches. `scripts/import_xlsx.py` la convierte en CSV.
 ## Confirmado con el usuario
 Capacidad 4 (a veces 5). Mismo punto de encuentro para todos. Todos participan
 salvo ausencias temporales (`active: false`). Ver README > Hoja de ruta.
+En la V6, cada bloque de color es un coche y las marcas señalan quién *podría*
+conducir; el personal decide sobre la marcha quién coge el coche. El plan se
+repite idéntico cada semana durante un ciclo (normalmente 3 meses; la duración
+debe ser configurable). Los cambios puntuales (alguien se va antes al médico)
+se avisan ese día. Un tope de días conduciendo por persona es opcional y a
+criterio del organizador, nunca obligatorio. La app ya permite renombrar,
+añadir y eliminar personas; falta reordenarlas y retocar el reparto a mano.
+El ciclo sirve, de momento, para rotular el plan con sus fechas y para ver
+quién sale más perjudicado (conduce por encima de lo que le toca) y poder
+compensarlo después; no se generan semanas distintas.
+
+## Forma de trabajar con el organizador
+El usuario no es programador: es el organizador del grupo y usa la app para
+calcular el reparto. Estas reglas se aplican en todas las sesiones.
+
+1. **Explicar antes de tocar.** Antes de modificar o crear cualquier archivo,
+   explicar en lenguaje llano qué se va a cambiar, en qué archivos, por qué y
+   qué notará el usuario en la app. Sin jerga sin explicar.
+2. **Esperar confirmación.** No aplicar nada hasta que el usuario confirme
+   con un "adelante" o similar. Sin confirmación, no se toca nada.
+3. **Una parte cada vez.** Si una tarea tiene varias partes, proponerlas de
+   una en una y pedir confirmación en cada una.
+4. **Comprobar después.** Tras aplicar un cambio, ejecutar `pytest` y decir
+   en una frase si todo ha ido bien. Si se toca la app web, regenerar
+   `docs/index.html` con `python scripts/build_web.py` y avisar, porque es
+   lo que se publica.
+5. **Preguntar, no suponer.** Ante dudas sobre el funcionamiento del grupo
+   (horarios, costumbres, preferencias), preguntar al usuario.
+6. **Sin commits ni push.** Los hace el usuario desde GitHub Desktop cuando
+   haya revisado los cambios.
