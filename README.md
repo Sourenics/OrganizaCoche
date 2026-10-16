@@ -43,6 +43,8 @@ La vista **Rejilla** reproduce la disposición de la V6 (personas en filas, un
 coche por columna como barra de color, ● conduce · ◐ también podría · ○
 paquete) y es lo que sale en el PDF, en apaisado; el interruptor *PDF con
 detalle por día* añade una segunda hoja con la semana, los coches y la equidad.
+El interruptor **Horas fijas** convierte las casillas de hora en desplegables
+con la lista de horas del centro (editable), para no teclear mal ninguna.
 El interruptor **Topes de días** añade una columna *Máx./sem.* para limitar,
 si se quiere, los días que conduce cada persona a la semana (la app sólo lo
 supera si no hay otra forma de cubrir una franja, y avisa).

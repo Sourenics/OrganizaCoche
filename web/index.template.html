@@ -48,6 +48,9 @@
   input.t{width:62px;text-align:center}
   input.t.off{opacity:.35}
   input.t.bad{border-color:var(--warn);background:var(--warn-bg);color:var(--warn);font-weight:600}
+  select.t{width:74px;padding:4px 2px;font-size:13px;text-align:center}
+  select.t.bad{border-color:var(--warn);background:var(--warn-bg);color:var(--warn);font-weight:600}
+  input#bellTimes{width:min(420px,60vw);font-variant-numeric:tabular-nums}
   .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:14px;box-shadow:0 1px 2px rgba(0,0,0,.03)}
   .scroll{overflow-x:auto}
   table{border-collapse:collapse;width:100%}
@@ -115,7 +118,7 @@
   th.capcol,td.capcol{background:var(--soft)}
   .bar-eq{height:8px;background:var(--line);border-radius:4px;overflow:hidden;min-width:120px}
   .bar-eq i{display:block;height:100%;background:var(--accent)}
-  .hidden{display:none}
+  .hidden{display:none!important}
   footer{color:var(--muted);font-size:12px;text-align:center;padding:20px}
   @media print{
     header,.bar,footer,.noprint,#tab-horaris{display:none!important}
@@ -156,6 +159,8 @@
       <label>Plazas por coche <input id="cap" type="number" min="2" max="9" class="t"></label>
       <label title="Periodo durante el que se repite este reparto">Ciclo del <input id="cycStart" type="date"> al <input id="cycEnd" type="date"></label>
       <label class="switch" title="Permite poner a cada persona un máximo de días conduciendo a la semana"><input type="checkbox" id="useCaps"><span class="track"></span>Topes de días</label>
+      <label class="switch" title="Las horas se eligen de una lista fija (las del centro) en vez de teclearse"><input type="checkbox" id="fixedTimes"><span class="track"></span>Horas fijas</label>
+      <label id="bellWrap" class="hidden" title="Horas del centro, separadas por comas. Puedes cambiarlas para otro centro u otro curso.">Lista <input id="bellTimes" type="text" placeholder="8:00, 8:55, 9:50, …"></label>
     </div>
     <div class="bar">
       <button class="ghost" id="addPerson">+ Añadir persona</button>
@@ -180,6 +185,7 @@
         <i>Paquete</i> va de pasajera seguro (nunca conduce ese día, pero sí comparte); <i>No comparte</i> va por su cuenta.
         Una persona <b>inactiva</b> queda fuera de la rueda sin perder sus horarios.
         <b>Ciclo</b>: fechas entre las que se repite este reparto; salen en el rótulo, el PDF y el Excel.
+        <b>Horas fijas</b>: con el interruptor encendido, las horas se eligen de la lista del centro (editable) en vez de teclearse; una hora guardada que no esté en la lista se muestra con ⚠ para que la revises.
         <b>Topes de días</b>: con el interruptor encendido aparece la columna <b>Máx./sem.</b>; si pones un número, esa persona no conducirá más días a la semana que ésos, salvo que no haya otra forma de cubrir una franja (entonces la app avisa). Vacío = sin tope.
         Con <b>▲ ▼</b> cambias el orden de la lista; el reparto y el Excel lo respetan.
         Los cambios se guardan automáticamente en este navegador; usa <b>Exportar</b> para tener copia y <b>Importar</b> para recuperarla en otro dispositivo.
@@ -228,12 +234,16 @@ const SEED = __SEED__;
 const DAYS = ["dilluns","dimarts","dimecres","dijous","divendres"];
 const KEY = "cotxa.state.v1";
 const MARKS = ["auto","drive","pax","solo"];
+// Horas del centro por defecto (modo "Horas fijas"); el organizador puede editarlas.
+const BELL_DEFAULT = ["8:00","8:55","9:50","10:45","11:10","12:05","13:00","13:55","14:10","15:05"];
 const MARK_LABEL = {auto:"Auto", drive:"Conduce", pax:"Paquete", solo:"No comparte"};
 // Marca por persona y día: auto (decide la app) · drive (conduce sí o sí) · pax (paquete: nunca conduce) · solo (no comparte).
 // Los JSON antiguos sólo traían share:"si"/"no"; se convierten al cargar.
 function normalize(st){
   if(!Array.isArray(st.history)) st.history=[];
   st.useCaps=!!st.useCaps; st.printDetail=!!st.printDetail;
+  st.fixedTimes=!!st.fixedTimes;
+  if(!Array.isArray(st.bellTimes)||!st.bellTimes.length) st.bellTimes=[...BELL_DEFAULT];
   for(const p of st.people||[]) if(!(Number.isInteger(p.maxDrive)&&p.maxDrive>=0)) delete p.maxDrive;
   for(const p of st.people||[]){ p.days??={}; for(const d of DAYS){ const x=p.days[d]; if(!x) continue;
     if(!MARKS.includes(x.mark)) x.mark = x.share==="no" ? "solo" : "auto"; delete x.share; } }
@@ -439,10 +449,17 @@ function renderTable(){
     for(const d of DAYS){
       const x=p.days[d]||{in:"",out:"",flex:"",mark:"auto"}; const off=!x.in&&!x.out&&!x.inflex&&!x.flex;
       const v=off?null:validateDay(x); const bad=f=>v&&v.field===f?` bad" title="${esc(v.msg)}`:"";
-      h+=`<td class="day"><input class="t ${off?"off":""}${bad("in")}" type="text" data-i="${i}" data-d="${d}" data-f="in" value="${esc(x.in)}" placeholder="–"></td>`;
-      h+=`<td><input class="t ${off?"off":""}${bad("inflex")}" type="text" data-i="${i}" data-d="${d}" data-f="inflex" value="${esc(x.inflex||"")}" placeholder="–" ${v&&v.field==="inflex"?"":'title="Acepta entrar antes, desde esta hora"'}></td>`;
-      h+=`<td><input class="t ${off?"off":""}${bad("out")}" type="text" data-i="${i}" data-d="${d}" data-f="out" value="${esc(x.out)}" placeholder="–"></td>`;
-      h+=`<td><input class="t ${off?"off":""}${bad("flex")}" type="text" data-i="${i}" data-d="${d}" data-f="flex" value="${esc(x.flex)}" placeholder="–"></td>`;
+      // campo de hora: texto libre, o desplegable con las horas del centro si "Horas fijas" está encendido
+      const timeField=(f,val,title)=>{
+        const cls=`t ${off?"off":""}${bad(f)}`, t=title&&!(v&&v.field===f)?` title="${title}"`:"";
+        if(!state.fixedTimes) return `<input class="${cls}" type="text" data-i="${i}" data-d="${d}" data-f="${f}" value="${esc(val)}" placeholder="–"${t}>`;
+        const opts=[...state.bellTimes]; const odd=val&&!opts.includes(val);
+        return `<select class="${cls}" data-i="${i}" data-d="${d}" data-f="${f}"${t}><option value="">–</option>${opts.map(o=>`<option value="${o}" ${o===val?"selected":""}>${o}</option>`).join("")}${odd?`<option value="${esc(val)}" selected>⚠ ${esc(val)}</option>`:""}</select>`;
+      };
+      h+=`<td class="day">${timeField("in",x.in)}</td>`;
+      h+=`<td>${timeField("inflex",x.inflex||"","Acepta entrar antes, desde esta hora")}</td>`;
+      h+=`<td>${timeField("out",x.out)}</td>`;
+      h+=`<td>${timeField("flex",x.flex||"","Acepta salir después, hasta esta hora")}</td>`;
       h+=`<td><select class="mk" data-i="${i}" data-d="${d}" data-f="mark" ${off?"disabled":""}>${MARKS.map(m=>`<option value="${m}" ${(x.mark||"auto")===m?"selected":""}>${MARK_LABEL[m]}</option>`).join("")}</select></td>`;
     }
     h+=`<td style="white-space:nowrap"><button class="ghost mv" data-mv="${i}" data-dir="-1" title="Subir" ${i===0?"disabled":""}>▲</button> <button class="ghost mv" data-mv="${i}" data-dir="1" title="Bajar" ${i===state.people.length-1?"disabled":""}>▼</button> <button class="ghost danger" data-del="${i}" title="Eliminar">✕</button></td></tr>`;
@@ -451,6 +468,7 @@ function renderTable(){
   $("#cap").value=state.capacity;
   $("#cycStart").value=state.cycle?.start||""; $("#cycEnd").value=state.cycle?.end||"";
   $("#useCaps").checked=!!state.useCaps;
+  $("#fixedTimes").checked=!!state.fixedTimes; $("#bellWrap").classList.toggle("hidden",!state.fixedTimes); $("#bellTimes").value=state.bellTimes.join(", ");
   $("#printDetail").checked=!!state.printDetail; document.body.classList.toggle("print-detail",!!state.printDetail);
   $("#sampleNote").classList.toggle("hidden", !state.sample);
   renderCycle();
@@ -476,6 +494,14 @@ $("#tbl").addEventListener("click",e=>{
 });
 $("#cap").addEventListener("change",e=>{ state.capacity=Math.max(2,+e.target.value||4); save(); });
 $("#useCaps").addEventListener("change",e=>{ state.useCaps=e.target.checked; delete state.sample; save(); renderTable(); });
+$("#fixedTimes").addEventListener("change",e=>{ state.fixedTimes=e.target.checked; delete state.sample; save(); renderTable(); });
+$("#bellTimes").addEventListener("change",e=>{
+  const raw=e.target.value.split(/[,\s;]+/).map(normTime).filter(Boolean);
+  const bad=raw.filter(t=>validMins(t)===null), good=[...new Set(raw.filter(t=>validMins(t)!==null))].sort((a,b)=>mins(a)-mins(b));
+  if(bad.length) alert(`Horas no válidas (usa el formato 8:00): ${bad.join(", ")}`);
+  if(good.length) state.bellTimes=good; else state.bellTimes=[...BELL_DEFAULT];
+  delete state.sample; save(); renderTable();
+});
 for(const id of ["cycStart","cycEnd"]) $("#"+id).addEventListener("change",()=>{
   state.cycle={start:$("#cycStart").value||"", end:$("#cycEnd").value||""};
   if(!state.cycle.start&&!state.cycle.end) delete state.cycle;

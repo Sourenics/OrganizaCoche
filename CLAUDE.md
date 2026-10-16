@@ -53,6 +53,10 @@ de coches y repartir la carga de conducir de forma equitativa.
 - Estado en `localStorage` (clave `cotxa.state.v1`) + exportar/importar JSON.
   Formato: `{capacity, cycle?:{start,end}, useCaps, people:[{name, active, maxDrive?, days:{dilluns:{in,inflex,out,flex,mark}}}]}`.
   `inflex` = "entra desde" (acepta entrar antes), `flex` = "espera hasta".
+  `fixedTimes` (interruptor "Horas fijas") y `bellTimes` (lista editable, por
+  defecto `BELL_DEFAULT`, las horas del instituto): con el modo encendido los
+  campos de hora son desplegables con esa lista; una hora guardada fuera de la
+  lista se conserva y se muestra con ⚠. Sólo afecta a la entrada de datos.
   `printDetail` añade al PDF una 2ª hoja con el detalle (clase `print-detail`
   en `body`); por defecto el PDF es sólo la rejilla V6 (`renderV6`, apaisado).
   `useCaps` es el interruptor "Topes de días"; sólo si está encendido se
