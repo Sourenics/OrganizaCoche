@@ -39,6 +39,9 @@ indican en Horarios y salen en el rótulo, el PDF y el Excel. Al acabar,
 equidad muestra el **saldo** acumulado de cada persona (días conducidos de
 más o de menos respecto a lo que le tocaba) y la app lo compensa al calcular
 el ciclo siguiente; las marcas manuales mandan sobre esa compensación.
+El interruptor **Topes de días** añade una columna *Máx./sem.* para limitar,
+si se quiere, los días que conduce cada persona a la semana (la app sólo lo
+supera si no hay otra forma de cubrir una franja, y avisa).
 La librería de Excel (SheetJS) va incluida en `docs/vendor/`, así que la app
 funciona sin conexión y sin depender de terceros.
 Los datos se guardan en el navegador y se pueden **exportar/importar** en JSON
@@ -95,7 +98,8 @@ pytest
 
 `data/config.json` fija la capacidad (4 por defecto; a veces caben 5) y
 permite sacar temporalmente a alguien de la rueda con `"active": false`, sin
-borrar sus horarios. Todo el mundo sale del mismo punto de encuentro.
+borrar sus horarios, o ponerle un tope de días conduciendo a la semana con
+`"max_drive": 2`. Todo el mundo sale del mismo punto de encuentro.
 
 ## Formato de `data/horaris.csv`
 

@@ -7,6 +7,8 @@ Enfoque (v0, sin dependencias):
    queden cubiertas y la carga de conducción sea lo más pareja posible.
    Las marcas manuales (conduce / paquete) se respetan siempre: un "conduce"
    se fija como conductor y un "paquete" nunca conduce ese día.
+   `Person.max_drive` (opcional) es un tope de días conduciendo a la semana:
+   no se supera salvo que sea la única forma de cubrir una franja (se avisa).
    `bias` (opcional) es la compensación de ciclos anteriores, en días de
    conducir a la semana: se suma a los días conduciendo de cada persona al
    medir la carga, así que quien condujo de más antes conduce menos ahora.
@@ -125,6 +127,15 @@ def solve(
         if n == sharing[p]:
             warnings.append(f"{p}: marcado 'paquete' todos sus días; no conducirá nunca")
 
+    def at_cap(p: str) -> bool:
+        cap = people[p].max_drive
+        return cap is not None and driving[p] >= cap
+
+    for p in sharing:
+        cap = people[p].max_drive
+        if cap is not None and driving[p] > cap:
+            warnings.append(f"{p}: las marcas 'conduce' ({driving[p]} días) superan su tope de {cap}")
+
     required = {s: math.ceil(len(m) / capacity) for s, m in members.items()}
 
     def drivers_in(slot: Slot) -> int:
@@ -146,6 +157,14 @@ def solve(
             if roles[(p, slot.day)] is Role.PASSENGER and people[p].has_car
             and (p, slot.day) not in locked
         ]
+        under_cap = [p for p in candidates if not at_cap(p)]
+        if candidates and not under_cap:
+            warnings.append(
+                f"{slot.day} {slot.direction} {slot.time}: sólo queda gente en su tope de días; "
+                f"alguien conducirá un día de más"
+            )
+        else:
+            candidates = under_cap
         if not candidates:
             warnings.append(
                 f"{slot.day} {slot.direction} {slot.time}: faltan conductores "
@@ -184,7 +203,7 @@ def solve(
             swapped = False
             # dict.fromkeys en vez de set: orden determinista (igual que el Set de JS)
             for q in dict.fromkeys(m for s in person_slots[(p, day)] for m in members[s]):
-                if q == p or roles[(q, day)] is not Role.PASSENGER or not people[q].has_car or (q, day) in locked:
+                if q == p or roles[(q, day)] is not Role.PASSENGER or not people[q].has_car or (q, day) in locked or at_cap(q):
                     continue
                 roles[(q, day)] = Role.DRIVER
                 driving[q] += 1
@@ -204,7 +223,7 @@ def solve(
 
     def could_drive(q: str, p: str, day: str) -> bool:
         """¿Podría q llevar el coche en lugar de p? Sí, si aún no llega a lo que le toca."""
-        if (q, day) in locked or not people[q].has_car:
+        if (q, day) in locked or not people[q].has_car or at_cap(q):
             return False
         if load[q] >= mean_ratio * sharing[q] - 1e-9:
             return False

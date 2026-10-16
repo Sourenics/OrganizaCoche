@@ -17,6 +17,9 @@ de coches y repartir la carga de conducir de forma equitativa.
   no se usa salvo que cambie la situación).
 - Capacidad 4 por defecto (a veces 5: `--capacity 5`).
 - `salida_flex`: la persona acepta salir más tarde si así va acompañada.
+- Tope opcional de días conduciendo/semana por persona (`max_drive`): se
+  respeta salvo que sea la única forma de cubrir una franja (se avisa). En la
+  web sólo cuenta con el interruptor "Topes de días" encendido.
 - Marcas manuales por `(persona, día)`: **conduce** se fija como conductor,
   **paquete** nunca conduce ese día (pero comparte y cuenta en la equidad).
   El solver no las toca. En cada coche se señala quién más *podría* llevarlo
@@ -42,7 +45,10 @@ de coches y repartir la carga de conducir de forma equitativa.
 - La función `solve(state)` del JS es un port 1:1 de `solver.py`. Cualquier
   cambio en el algoritmo se hace en los dos sitios.
 - Estado en `localStorage` (clave `cotxa.state.v1`) + exportar/importar JSON.
-  Formato: `{capacity, cycle?:{start,end}, people:[{name, active, days:{dilluns:{in,out,flex,mark}}}]}`.
+  Formato: `{capacity, cycle?:{start,end}, useCaps, people:[{name, active, maxDrive?, days:{dilluns:{in,out,flex,mark}}}]}`.
+  `useCaps` es el interruptor "Topes de días"; sólo si está encendido se
+  aplica `maxDrive` (tope de días conduciendo/semana por persona; equivale a
+  `Person.max_drive` en Python, leído de `config.json`).
   `cycle` (fechas ISO, opcional) rotula el plan, el PDF y el Excel; sólo
   existe en la web, el CLI no lo usa.
   `history: [{start, end, weeks, closed, people:{name:{driving, sharing, fair}}}]`

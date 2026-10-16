@@ -51,6 +51,7 @@ def load_people(path: str | Path | None, trips: list[Trip]) -> dict[str, Person]
                 has_car=cfg.get("has_car", True),
                 active=cfg.get("active", True),
                 zone=cfg.get("zone", "default"),
+                max_drive=cfg.get("max_drive"),
             )
     for t in trips:
         people.setdefault(t.person, Person(t.person))

@@ -44,7 +44,7 @@
   .plan-days{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:14px}
   .plan-day h2{margin:0 0 8px;font-size:17px;text-transform:capitalize}
   .plan-day h3{margin:10px 0 4px;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
-  .car{display:flex;gap:10px;align-items:baseline;padding:5px 0;border-bottom:1px dashed var(--line)}
+  .car{display:grid;grid-template-columns:auto auto 1fr;gap:2px 10px;align-items:baseline;padding:6px 0;border-bottom:1px dashed var(--line)}
   .car:last-child{border-bottom:0}
   .car .time{font-variant-numeric:tabular-nums;color:var(--muted);min-width:44px}
   .car .drv{font-weight:700}
@@ -55,8 +55,18 @@
   .grid td.p{text-align:center;color:var(--muted)}
   .grid td.s{text-align:center;color:var(--muted);opacity:.6}
   .grid td.day.click{cursor:pointer} .grid td.day.click:hover{outline:2px solid var(--accent);outline-offset:-2px}
-  .car .alt{color:var(--muted);font-size:12px} .car .pq{color:var(--muted);opacity:.6;font-size:12px}
+  .car .alt,.car .pq{grid-column:2/-1;font-size:12px;color:var(--muted)} .car .pq{opacity:.65}
+  .car .alt::before{content:"↳ ";opacity:.6}
+  #history .car{grid-template-columns:1fr auto auto} #history .car .mini{grid-column:auto}
   select.mk{font-size:12px;padding:3px 2px}
+  .switch{display:inline-flex;align-items:center;gap:8px;cursor:pointer;user-select:none}
+  .switch input{position:absolute;opacity:0;width:0;height:0}
+  .switch .track{width:38px;height:22px;border-radius:999px;background:var(--line);position:relative;transition:background .2s;flex:none}
+  .switch .track::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:var(--card);box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .2s}
+  .switch input:checked+.track{background:var(--accent)} .switch input:checked+.track::after{transform:translateX(16px)}
+  .switch input:focus-visible+.track{outline:2px solid var(--accent);outline-offset:2px}
+  input.cap{width:48px;text-align:center} input.cap::placeholder{color:var(--muted);opacity:.7}
+  th.capcol,td.capcol{background:var(--soft)}
   .bar-eq{height:8px;background:var(--line);border-radius:4px;overflow:hidden;min-width:120px}
   .bar-eq i{display:block;height:100%;background:var(--accent)}
   .hidden{display:none}
@@ -85,6 +95,7 @@
     <div class="bar">
       <label>Plazas por coche <input id="cap" type="number" min="2" max="9" class="t"></label>
       <label title="Periodo durante el que se repite este reparto">Ciclo del <input id="cycStart" type="date"> al <input id="cycEnd" type="date"></label>
+      <label class="switch" title="Permite poner a cada persona un máximo de días conduciendo a la semana"><input type="checkbox" id="useCaps"><span class="track"></span>Topes de días</label>
       <button class="ghost" id="addPerson">+ Añadir persona</button>
       <button class="ghost" id="blank">Empezar de cero</button>
       <span style="flex:1"></span>
@@ -106,6 +117,7 @@
         <i>Paquete</i> va de pasajera seguro (nunca conduce ese día, pero sí comparte); <i>No comparte</i> va por su cuenta.
         Una persona <b>inactiva</b> queda fuera de la rueda sin perder sus horarios.
         <b>Ciclo</b>: fechas entre las que se repite este reparto; salen en el rótulo, el PDF y el Excel.
+        <b>Topes de días</b>: con el interruptor encendido aparece la columna <b>Máx./sem.</b>; si pones un número, esa persona no conducirá más días a la semana que ésos, salvo que no haya otra forma de cubrir una franja (entonces la app avisa). Vacío = sin tope.
         Con <b>▲ ▼</b> cambias el orden de la lista; el reparto y el Excel lo respetan.
         Los cambios se guardan automáticamente en este navegador; usa <b>Exportar</b> para tener copia y <b>Importar</b> para recuperarla en otro dispositivo.
       </p>
@@ -153,6 +165,8 @@ const MARK_LABEL = {auto:"Auto", drive:"Conduce", pax:"Paquete", solo:"No compar
 // Los JSON antiguos sólo traían share:"si"/"no"; se convierten al cargar.
 function normalize(st){
   if(!Array.isArray(st.history)) st.history=[];
+  st.useCaps=!!st.useCaps;
+  for(const p of st.people||[]) if(!(Number.isInteger(p.maxDrive)&&p.maxDrive>=0)) delete p.maxDrive;
   for(const p of st.people||[]){ p.days??={}; for(const d of DAYS){ const x=p.days[d]; if(!x) continue;
     if(!MARKS.includes(x.mark)) x.mark = x.share==="no" ? "solo" : "auto"; delete x.share; } }
   return st;
@@ -211,6 +225,9 @@ function solve(st, bias){
   const warnings = [];
   bias = bias || {};
   const load=p=>driving[p]+(bias[p]||0); // carga = días conduciendo + compensación de ciclos anteriores
+  // tope opcional de días/semana por persona (sólo si el interruptor "Topes de días" está encendido)
+  const maxDrive={}; if(st.useCaps) for(const p of st.people) if(Number.isInteger(p.maxDrive)) maxDrive[p.name]=p.maxDrive;
+  const atCap=p=>maxDrive[p]!==undefined && driving[p]>=maxDrive[p];
   // trayectos activos
   let trips=[];
   for(const p of st.people){
@@ -243,6 +260,7 @@ function solve(st, bias){
     personSlots[k]=[a,b];
   }
   for(const p in paxDays) if(paxDays[p]===sharing[p]) warnings.push(`${p}: marcado 'paquete' todos sus días; no conducirá nunca`);
+  for(const p in sharing) if(maxDrive[p]!==undefined && driving[p]>maxDrive[p]) warnings.push(`${p}: las marcas 'conduce' (${driving[p]} días) superan su tope de ${maxDrive[p]}`);
   const required={}; for(const s in members) required[s]=Math.ceil(members[s].length/cap);
   const dayOf=s=>s.split("|")[0];
   const driversIn=s=>members[s].filter(p=>roles[p+"|"+dayOf(s)]==="conductor").length;
@@ -256,7 +274,10 @@ function solve(st, bias){
     for(const s in members){ const d=deficit(s); if(d>best){best=d;slot=s;} }
     if(!slot || best<=0) break;
     const day=dayOf(slot);
-    const cands=members[slot].filter(p=>roles[p+"|"+day]==="pasajero" && !locked.has(p+"|"+day));
+    let cands=members[slot].filter(p=>roles[p+"|"+day]==="pasajero" && !locked.has(p+"|"+day));
+    const underCap=cands.filter(p=>!atCap(p));
+    if(cands.length && !underCap.length) warnings.push(`${slot.replace(/\|/g," ")}: sólo queda gente en su tope de días; alguien conducirá un día de más`);
+    else cands=underCap;
     if(!cands.length){ warnings.push(`${slot.replace(/\|/g," ")}: faltan conductores (${driversIn(slot)} coches para ${members[slot].length} personas)`); required[slot]=driversIn(slot); continue; }
     cands.sort((p,q)=>{
       const sp=load(p)/sharing[p], sq=load(q)/sharing[q]; if(sp!==sq) return sp-sq;
@@ -277,7 +298,7 @@ function solve(st, bias){
       if(feasible() && fairness()<=base){ improved=true; break; }
       const pool=new Set(); for(const s of personSlots[k]) for(const m of members[s]) pool.add(m);
       for(const q of pool){
-        if(q===p || roles[q+"|"+day]!=="pasajero" || locked.has(q+"|"+day)) continue;
+        if(q===p || roles[q+"|"+day]!=="pasajero" || locked.has(q+"|"+day) || atCap(q)) continue;
         roles[q+"|"+day]="conductor"; driving[q]++;
         if(feasible() && fairness()<base-1e-9){ improved=true; break outer; }
         roles[q+"|"+day]="pasajero"; driving[q]--;
@@ -289,7 +310,7 @@ function solve(st, bias){
   const ratios=Object.keys(sharing).map(p=>load(p)/sharing[p]);
   const meanRatio=ratios.length?ratios.reduce((a,b)=>a+b,0)/ratios.length:0;
   const couldDrive=(q,p,day)=>{ // ¿podría q llevar el coche en lugar de p sin pasarse de lo que le toca?
-    if(locked.has(q+"|"+day)) return false;
+    if(locked.has(q+"|"+day) || atCap(q)) return false;
     if(load(q)>=meanRatio*sharing[q]-1e-9) return false; // ya llega a lo que le toca
     roles[p+"|"+day]="pasajero"; roles[q+"|"+day]="conductor";
     const ok=feasible();
@@ -316,14 +337,16 @@ const $=s=>document.querySelector(s);
 const activeNames=()=>state.people.filter(p=>p.active).map(p=>p.name); // en el orden de la tabla
 function renderTable(){
   const t=$("#tbl");
-  let h=`<thead><tr><th>Persona</th><th>Activa</th>`;
+  const caps=!!state.useCaps;
+  let h=`<thead><tr><th>Persona</th><th>Activa</th>${caps?`<th class="capcol" title="Máximo de días conduciendo a la semana (vacío = sin tope)">Máx./sem.</th>`:""}`;
   for(const d of DAYS) h+=`<th class="day" colspan="4">${d}</th>`;
-  h+=`<th></th></tr><tr><th></th><th></th>`;
+  h+=`<th></th></tr><tr><th></th><th></th>${caps?`<th class="capcol"></th>`:""}`;
   for(const d of DAYS) h+=`<th class="day">Entrada</th><th>Salida</th><th>Espera hasta</th><th>Marca</th>`;
   h+=`<th></th></tr></thead><tbody>`;
   state.people.forEach((p,i)=>{
     h+=`<tr class="${p.active?"":"inactive"}"><td><input type="text" data-i="${i}" data-f="name" value="${esc(p.name)}" style="width:110px"></td>`;
     h+=`<td style="text-align:center"><input type="checkbox" data-i="${i}" data-f="active" ${p.active?"checked":""}></td>`;
+    if(caps) h+=`<td class="capcol" style="text-align:center"><input class="cap" type="number" min="0" max="5" data-i="${i}" data-f="maxDrive" value="${Number.isInteger(p.maxDrive)?p.maxDrive:""}" placeholder="∞"></td>`;
     for(const d of DAYS){
       const x=p.days[d]||{in:"",out:"",flex:"",mark:"auto"}; const off=!x.in&&!x.out;
       h+=`<td class="day"><input class="t ${off?"off":""}" type="text" data-i="${i}" data-d="${d}" data-f="in" value="${esc(x.in)}" placeholder="–"></td>`;
@@ -336,6 +359,7 @@ function renderTable(){
   t.innerHTML=h+"</tbody>";
   $("#cap").value=state.capacity;
   $("#cycStart").value=state.cycle?.start||""; $("#cycEnd").value=state.cycle?.end||"";
+  $("#useCaps").checked=!!state.useCaps;
   $("#sampleNote").classList.toggle("hidden", !state.sample);
   renderCycle();
 }
@@ -346,6 +370,7 @@ $("#tbl").addEventListener("change",e=>{
   delete state.sample; // en cuanto se edita algo ya no son los datos de ejemplo
   if(f==="name") p.name=el.value.trim()||p.name;
   else if(f==="active") p.active=el.checked;
+  else if(f==="maxDrive"){ const v=el.value.trim(); if(v===""||!Number.isInteger(+v)||+v<0) delete p.maxDrive; else p.maxDrive=Math.min(5,+v); }
   else { p.days[d]??={in:"",out:"",flex:"",mark:"auto"}; if(f==="mark") p.days[d].mark=el.value; else p.days[d][f]=normTime(el.value); }
   save(); renderTable();
 });
@@ -358,6 +383,7 @@ $("#tbl").addEventListener("click",e=>{
   if(confirm(`¿Eliminar a ${p.name} y sus horarios? (Si es temporal, mejor desmarca "Activa".)`)){ state.people.splice(+b.dataset.del,1); save(); renderTable(); }
 });
 $("#cap").addEventListener("change",e=>{ state.capacity=Math.max(2,+e.target.value||4); save(); });
+$("#useCaps").addEventListener("change",e=>{ state.useCaps=e.target.checked; delete state.sample; save(); renderTable(); });
 for(const id of ["cycStart","cycEnd"]) $("#"+id).addEventListener("change",()=>{
   state.cycle={start:$("#cycStart").value||"", end:$("#cycEnd").value||""};
   if(!state.cycle.start&&!state.cycle.end) delete state.cycle;
@@ -494,8 +520,8 @@ $("#xlsx").onclick=()=>{
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(hist), "Historial");
   }
   // 4. Horarios (los datos de entrada, por si hay que reimportarlos)
-  const hor=[["Persona","Activa",...DAYS.flatMap(d=>[d+" entrada",d+" salida",d+" espera hasta",d+" marca"])]];
-  for(const p of state.people){ const row=[p.name,p.active?"sí":"no"]; for(const d of DAYS){ const x=p.days?.[d]||{}; row.push(x.in||"",x.out||"",x.flex||"",MARK_LABEL[x.mark||"auto"]); } hor.push(row); }
+  const hor=[["Persona","Activa",...(state.useCaps?["Máx. días/sem"]:[]),...DAYS.flatMap(d=>[d+" entrada",d+" salida",d+" espera hasta",d+" marca"])]];
+  for(const p of state.people){ const row=[p.name,p.active?"sí":"no",...(state.useCaps?[Number.isInteger(p.maxDrive)?p.maxDrive:""]:[])]; for(const d of DAYS){ const x=p.days?.[d]||{}; row.push(x.in||"",x.out||"",x.flex||"",MARK_LABEL[x.mark||"auto"]); } hor.push(row); }
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(hor), "Horarios");
   for(const ws of Object.values(wb.Sheets)){ const w=[]; XLSX.utils.sheet_to_json(ws,{header:1}).forEach(r=>r.forEach((v,i)=>w[i]=Math.max(w[i]||8,String(v??"").length+2))); ws["!cols"]=w.map(wch=>({wch:Math.min(wch,40)})); }
   XLSX.writeFile(wb, `cotxa-reparto-${ci.start?ci.start+"_"+ci.end:new Date().toISOString().slice(0,10)}.xlsx`);

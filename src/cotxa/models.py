@@ -30,6 +30,9 @@ class Person:
     has_car: bool = True
     active: bool = True  # False = temporalmente fuera de la rueda (no se reparte)
     zone: str = "default"  # todos salen del mismo punto; se mantiene por si hiciera falta
+    # Tope opcional de días conduciendo a la semana (a criterio del organizador).
+    # Se respeta salvo que no haya otra forma de cubrir una franja (entonces se avisa).
+    max_drive: int | None = None
 
 
 @dataclass(frozen=True)

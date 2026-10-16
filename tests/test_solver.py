@@ -155,6 +155,24 @@ def test_cycle_balance():
     assert plan.cycle_balance("B", 10) == -10.0
 
 
+def test_max_drive_cap_is_respected():
+    # A y B idénticos 4 días; A con tope de 1 día → A conduce 1 y B 3
+    trips = [Trip(p, d, "8:00", "14:00") for p in "AB" for d in ("dilluns", "dimarts", "dimecres", "dijous")]
+    people = _people("A", "B", A=Person("A", max_drive=1))
+    res = solve(trips, people, capacity=4)
+    assert res.plan.driving_days("A") == 1 and res.plan.driving_days("B") == 3
+    assert not res.warnings
+
+
+def test_max_drive_cap_yields_when_slot_uncoverable():
+    # Dos personas con tope 0: alguien tiene que conducir igualmente, con aviso
+    trips = [Trip("A", "dilluns", "8:00", "14:00"), Trip("B", "dilluns", "8:00", "14:00")]
+    people = _people("A", "B", A=Person("A", max_drive=0), B=Person("B", max_drive=0))
+    res = solve(trips, people, capacity=4)
+    assert len([c for c in res.plan.cars if c.slot.direction == "entrada"]) == 1
+    assert any("tope de días" in w for w in res.warnings)
+
+
 def test_csv_marca_column(tmp_path):
     csv_path = tmp_path / "h.csv"
     csv_path.write_text(
