@@ -61,6 +61,52 @@ def test_flex_departure_joins_later_car():
     assert len(exits) == 1 and exits[0].slot.time == "13:55"
 
 
+def test_arrival_flex_joins_earlier_car():
+    # A entraría sola a las 8:55 pero acepta entrar desde las 8:00, donde está B
+    trips = [
+        Trip("A", "dilluns", "8:55", "14:00", arrival_flex="8:00"),
+        Trip("B", "dilluns", "8:00", "14:00"),
+    ]
+    res = solve(trips, _people("A", "B"), capacity=4)
+    entries = [c for c in res.plan.cars if c.slot.direction == "entrada"]
+    assert len(entries) == 1 and entries[0].slot.time == "8:00"
+
+
+def test_flex_moves_when_it_saves_a_car():
+    # Cinco a las 8:00 (2 coches) y una a las 7:50 (1 coche). Si E acepta entrar desde
+    # las 7:50, quedan 4 + 2 → 2 coches en vez de 3, aunque E no iba sola.
+    trips = [Trip(p, "dilluns", "8:00", "14:00") for p in "ABCD"]
+    trips += [Trip("E", "dilluns", "8:00", "14:00", arrival_flex="7:50"), Trip("F", "dilluns", "7:50", "14:00")]
+    res = solve(trips, _people(*"ABCDEF"), capacity=4)
+    entries = [c for c in res.plan.cars if c.slot.direction == "entrada"]
+    assert len(entries) == 2
+    assert any(c.slot.time == "7:50" and "E" in c.occupants for c in entries)
+
+
+def test_flex_stays_when_nothing_is_gained():
+    # Cuatro a las 8:00 (1 coche) y una a las 7:50 (1 coche): mover a D no ahorra nada y no va sola
+    trips = [Trip(p, "dilluns", "8:00", "14:00") for p in "ABC"]
+    trips += [Trip("D", "dilluns", "8:00", "14:00", arrival_flex="7:50"), Trip("F", "dilluns", "7:50", "14:00")]
+    res = solve(trips, _people(*"ABCDF"), capacity=4)
+    assert any(c.slot.time == "8:00" and "D" in c.occupants for c in res.plan.cars)
+
+
+def test_impossible_times_are_skipped_with_warning():
+    trips = [
+        Trip("A", "dilluns", "8:00", "8:00"),                          # salida no posterior
+        Trip("B", "dilluns", "8:00", "14:00", arrival_flex="9:00"),    # entra desde > entrada
+        Trip("C", "dilluns", "8:00", "14:00", departure_flex="13:00"),  # espera hasta < salida
+        Trip("D", "dilluns", "8h", "14:00"),                            # formato
+        Trip("E", "dilluns", "8:00", "14:00"),                          # correcto
+    ]
+    res = solve(trips, _people(*"ABCDE"), capacity=4)
+    assert set(p for p, _ in res.plan.roles) == {"E"}
+    assert any("A, dilluns: la salida (8:00) no es posterior a la entrada (8:00)" in w for w in res.warnings)
+    assert any("B, dilluns: «entra desde» (9:00) es posterior" in w for w in res.warnings)
+    assert any("C, dilluns: «espera hasta» (13:00) es anterior" in w for w in res.warnings)
+    assert any("D, dilluns: hora de entrada no válida: «8h»" in w for w in res.warnings)
+
+
 def test_real_data_is_balanced():
     trips = load_trips(ROOT / "data" / "horaris.sample.csv")
     people = load_people(ROOT / "data" / "config.json", trips)
@@ -79,6 +125,117 @@ def test_inactive_person_is_left_out():
     assert all("B" not in c.occupants for c in res.plan.cars)
 
 
+def test_forced_driver_is_kept():
+    # B está marcada "conduce" el dilluns aunque, por equidad, le tocaría a A (ya conduce menos)
+    trips = [
+        Trip("A", "dilluns", "8:00", "14:00"),
+        Trip("B", "dilluns", "8:00", "14:00", fixed_role=Role.DRIVER),
+        Trip("A", "dimarts", "8:00", "14:00"),
+        Trip("B", "dimarts", "8:00", "14:00", fixed_role=Role.DRIVER),
+    ]
+    res = solve(trips, _people("A", "B"), capacity=4)
+    assert res.plan.roles[("B", "dilluns")] is Role.DRIVER
+    assert res.plan.roles[("B", "dimarts")] is Role.DRIVER
+    assert res.plan.roles[("A", "dilluns")] is Role.PASSENGER
+    assert not res.warnings
+
+
+def test_paquete_never_drives():
+    trips = [
+        Trip("A", "dilluns", "8:00", "14:00", fixed_role=Role.PASSENGER),
+        Trip("B", "dilluns", "8:00", "14:00"),
+        Trip("C", "dilluns", "8:00", "14:00"),
+    ]
+    res = solve(trips, _people("A", "B", "C"), capacity=4)
+    assert res.plan.roles[("A", "dilluns")] is Role.PASSENGER
+    assert res.plan.sharing_days("A") == 1  # sigue contando como día compartido
+    assert "A" not in {c.driver for c in res.plan.cars}
+    # A es paquete todos sus días: aviso
+    assert any("A: marcado 'paquete' todos sus días" in w for w in res.warnings)
+
+
+def test_warning_when_only_paquetes():
+    trips = [
+        Trip("A", "dilluns", "8:00", "14:00", fixed_role=Role.PASSENGER),
+        Trip("B", "dilluns", "8:00", "14:00", fixed_role=Role.PASSENGER),
+    ]
+    res = solve(trips, _people("A", "B"), capacity=4)
+    assert not res.plan.cars
+    assert any("faltan conductores" in w for w in res.warnings)
+    assert any("nadie puede conducir" in w for w in res.warnings)
+
+
+def test_alternatives_exclude_paquetes_and_overloaded():
+    # Tres personas, un solo día: alguien conduce 1/1 y los demás 0/1.
+    # Un paquete nunca es alternativa; quien aún no conduce sí lo es.
+    trips = [
+        Trip("A", "dilluns", "8:00", "14:00", fixed_role=Role.DRIVER),
+        Trip("B", "dilluns", "8:00", "14:00"),
+        Trip("C", "dilluns", "8:00", "14:00", fixed_role=Role.PASSENGER),
+    ]
+    res = solve(trips, _people("A", "B", "C"), capacity=4)
+    for car in res.plan.cars:
+        assert car.driver == "A"
+        assert car.alternatives == ["B"]
+
+
+def test_bias_compensates_previous_cycles():
+    # A y B idénticos: sin saldo se reparten; si A viene "perjudicada" (condujo de más
+    # en ciclos anteriores), ahora conduce menos días que B.
+    trips = [Trip(p, d, "8:00", "14:00") for p in "AB" for d in ("dilluns", "dimarts", "dimecres", "dijous")]
+    base = solve(trips, _people("A", "B"), capacity=4).plan
+    assert base.driving_days("A") == base.driving_days("B") == 2
+    comp = solve(trips, _people("A", "B"), capacity=4, bias={"A": 2.0}).plan
+    assert comp.driving_days("A") < comp.driving_days("B")
+    assert comp.driving_days("A") + comp.driving_days("B") == 4  # sigue cubierto cada día
+
+
+def test_cycle_balance():
+    # A conduce 2 de 2 días, B 0 de 2: media 0,5 → a cada uno le toca 1 día/semana.
+    # En un ciclo de 10 semanas, A acumula +10 días (perjudicada) y B −10.
+    trips = [Trip(p, d, "8:00", "14:00") for p in "AB" for d in ("dilluns", "dimarts")]
+    trips = [Trip(t.person, t.day, t.arrival, t.departure, None, Role.DRIVER if t.person == "A" else None) for t in trips]
+    plan = solve(trips, _people("A", "B"), capacity=4).plan
+    assert plan.fair_days("A") == plan.fair_days("B") == 1.0
+    assert plan.cycle_balance("A", 10) == 10.0
+    assert plan.cycle_balance("B", 10) == -10.0
+
+
+def test_max_drive_cap_is_respected():
+    # A y B idénticos 4 días; A con tope de 1 día → A conduce 1 y B 3
+    trips = [Trip(p, d, "8:00", "14:00") for p in "AB" for d in ("dilluns", "dimarts", "dimecres", "dijous")]
+    people = _people("A", "B", A=Person("A", max_drive=1))
+    res = solve(trips, people, capacity=4)
+    assert res.plan.driving_days("A") == 1 and res.plan.driving_days("B") == 3
+    assert not res.warnings
+
+
+def test_max_drive_cap_yields_when_slot_uncoverable():
+    # Dos personas con tope 0: alguien tiene que conducir igualmente, con aviso
+    trips = [Trip("A", "dilluns", "8:00", "14:00"), Trip("B", "dilluns", "8:00", "14:00")]
+    people = _people("A", "B", A=Person("A", max_drive=0), B=Person("B", max_drive=0))
+    res = solve(trips, people, capacity=4)
+    assert len([c for c in res.plan.cars if c.slot.direction == "entrada"]) == 1
+    assert any("tope de días" in w for w in res.warnings)
+
+
+def test_csv_marca_column(tmp_path):
+    csv_path = tmp_path / "h.csv"
+    csv_path.write_text(
+        "persona,dia,entrada,salida,salida_flex,marca\n"
+        "A,dilluns,8:00,14:00,,conduce\n"
+        "B,dilluns,8:00,14:00,,paquete\n"
+        "C,dilluns,8:00,14:00,,no_comparte\n"
+        "D,dilluns,8:00,14:00,,\n",
+        encoding="utf-8",
+    )
+    trips = {t.person: t for t in load_trips(csv_path)}
+    assert trips["A"].fixed_role is Role.DRIVER
+    assert trips["B"].fixed_role is Role.PASSENGER
+    assert trips["C"].fixed_role is Role.SOLO
+    assert trips["D"].fixed_role is None
+
+
 def test_build_web_embeds_seed(tmp_path, monkeypatch):
     import importlib.util, json
     spec = importlib.util.spec_from_file_location("build_web", ROOT / "scripts" / "build_web.py")
@@ -88,6 +245,16 @@ def test_build_web_embeds_seed(tmp_path, monkeypatch):
     assert seed["capacity"] == 4 and seed["sample"] is True
     assert len(seed["people"]) == 15
     assert "__SEED__" not in (ROOT / "docs" / "index.html").read_text(encoding="utf-8")
+
+
+def test_docs_matches_template():
+    """docs/index.html (lo publicado) debe estar regenerado tras cada cambio en la plantilla."""
+    import re
+    tpl = (ROOT / "web" / "index.template.html").read_text(encoding="utf-8")
+    html = (ROOT / "docs" / "index.html").read_text(encoding="utf-8")
+    m = re.search(r"const SEED = (.*);", html)
+    assert m, "docs/index.html no contiene los datos incrustados"
+    assert html.replace(m.group(1), "__SEED__") == tpl, "ejecuta: python scripts/build_web.py"
 
 
 def test_no_real_data_in_repo():

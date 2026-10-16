@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Cotxà · Reparto de coche</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='48' fill='%230f5f4a'/%3E%3Ctext x='50' y='68' font-size='56' text-anchor='middle'%3E🚗%3C/text%3E%3C/svg%3E">
 <style>
   :root{
     --bg:#f6f4ef; --card:#fff; --ink:#1d1d1b; --muted:#6b6a65; --line:#e3e0d8;
@@ -16,22 +17,41 @@
     }
   }
   *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+  h1,h2,h3{font-weight:700;letter-spacing:-.01em}
+  .card h2{margin:0 0 8px;font-size:16px;display:flex;align-items:center;gap:8px}
+  .card h2::before{content:"";width:4px;height:16px;border-radius:2px;background:var(--accent)}
   header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line);background:var(--card);position:sticky;top:0;z-index:2}
-  header h1{font-size:20px;margin:0 auto 0 0;letter-spacing:.2px}
+  header h1{font-size:20px;margin:0 auto 0 0;letter-spacing:.2px;display:flex;align-items:center;gap:10px}
+  header h1::before{content:"🚗";font-size:18px}
   header h1 small{color:var(--muted);font-weight:400;font-size:13px;margin-left:8px}
   nav button{background:none;border:1px solid var(--line);color:var(--ink);padding:7px 14px;border-radius:999px;cursor:pointer;font-size:14px}
   nav button.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+  nav button:not(.on):hover{border-color:var(--accent);color:var(--accent)}
+  button{transition:background .15s,border-color .15s,color .15s,transform .05s} button:active:not(:disabled){transform:translateY(1px)}
+  button.primary:hover{filter:brightness(1.08)} button.ghost:hover{border-color:var(--accent)}
+  button.ghost.danger:hover{border-color:var(--warn);background:var(--warn-bg)}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   main{max-width:1200px;margin:0 auto;padding:16px}
-  .bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px}
-  .bar label{color:var(--muted);font-size:13px}
+  .bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:12px}
+  .bar label{color:var(--muted);font-size:13px;display:inline-flex;align-items:center;gap:6px}
+  .bar.settings{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 14px;gap:10px 22px}
+  .bar .sep{flex:1}
   button.primary{background:var(--accent);color:var(--accent-ink);border:0;padding:9px 16px;border-radius:8px;font-size:15px;cursor:pointer;font-weight:600}
   button.ghost{background:var(--card);border:1px solid var(--line);color:var(--ink);padding:8px 12px;border-radius:8px;cursor:pointer;font-size:14px}
   button.danger{color:var(--warn)}
-  input[type=text],input[type=number],select{font:inherit;padding:5px 6px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink)}
+  button.mv{padding:3px 6px;font-size:11px;line-height:1}
+  button.mv:disabled{opacity:.3;cursor:default}
+  input[type=text],input[type=number],input[type=date],select{font:inherit;padding:5px 6px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink)}
+  input[type=date]{font-size:13px;padding:4px 6px}
+  input:focus,select:focus{border-color:var(--accent);outline:0;box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 18%,transparent)}
   input.t{width:62px;text-align:center}
   input.t.off{opacity:.35}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:14px}
+  input.t.bad{border-color:var(--warn);background:var(--warn-bg);color:var(--warn);font-weight:600}
+  select.t{width:74px;padding:4px 2px;font-size:13px;text-align:center}
+  select.t.bad{border-color:var(--warn);background:var(--warn-bg);color:var(--warn);font-weight:600}
+  input#bellTimes{width:min(420px,60vw);font-variant-numeric:tabular-nums}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:14px;box-shadow:0 1px 2px rgba(0,0,0,.03)}
   .scroll{overflow-x:auto}
   table{border-collapse:collapse;width:100%}
   th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle;white-space:nowrap}
@@ -39,29 +59,87 @@
   td.day{border-left:1px solid var(--line)}
   .mini{font-size:12px;color:var(--muted)}
   .inactive td{opacity:.45}
+  #tbl tbody tr:hover td{background:color-mix(in srgb,var(--soft) 45%,transparent)}
+  #tbl th.day,#tbl td.day{border-left:2px solid var(--line)}
   .plan-days{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:14px}
   .plan-day h2{margin:0 0 8px;font-size:17px;text-transform:capitalize}
   .plan-day h3{margin:10px 0 4px;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
-  .car{display:flex;gap:10px;align-items:baseline;padding:5px 0;border-bottom:1px dashed var(--line)}
+  .car{display:grid;grid-template-columns:auto auto 1fr;gap:2px 10px;align-items:baseline;padding:7px 0 7px 10px;border-bottom:1px dashed var(--line);border-left:4px solid var(--line);margin:2px 0;border-radius:3px}
   .car:last-child{border-bottom:0}
   .car .time{font-variant-numeric:tabular-nums;color:var(--muted);min-width:44px}
+  .plan-day{position:relative}
   .car .drv{font-weight:700}
   .car .pax{color:var(--muted)}
   .pill{display:inline-block;padding:1px 8px;border-radius:999px;background:var(--soft);color:var(--accent);font-size:12px;font-weight:600}
   .warn{background:var(--warn-bg);color:var(--warn);border-radius:8px;padding:8px 12px;margin-top:8px}
   .grid td.c{background:var(--soft);font-weight:700;text-align:center}
+  /* Rejilla al estilo V6: personas en filas, un coche por columna (barra de color) */
+  .v6{border-collapse:separate;border-spacing:0;font-size:11px;width:auto}
+  .v6 th,.v6 td{padding:2px 3px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap;line-height:1.3}
+  .v6 th{font-size:10px;letter-spacing:0;text-transform:none}
+  .v6 th.dayh{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--accent-ink);background:var(--accent);border-radius:6px 6px 0 0}
+  .v6 th.dirh{background:var(--soft);color:var(--ink);font-weight:600}
+  .v6 th.dirh.out{opacity:.8}
+  .v6 th.timeh{color:var(--muted);font-variant-numeric:tabular-nums;font-weight:600;border-left:1px solid var(--line)}
+  .v6 th.gap,.v6 td.gap{width:8px;min-width:8px;padding:0;border-bottom:0;background:transparent}
+  .v6 th.name,.v6 td.name{text-align:left;font-weight:600;padding-right:8px;position:sticky;left:0;background:var(--card);z-index:1}
+  .v6 th.name.r,.v6 td.name.r{text-align:left;padding-left:8px;position:static}
+  .v6 td.cell{min-width:22px;border-left:1px solid var(--line)}
+  .v6 td.on{color:#111;font-weight:700;font-size:13px}
+  .v6 tr.odd td.cell:not(.on),.v6 tr.odd td.name{background:color-mix(in srgb,var(--soft) 55%,var(--card))}
+  .v6 td.on small{font-size:9px;font-weight:400;vertical-align:top}
+  .dot{display:inline-block;width:10px;height:10px;border-radius:50%;border:2px solid #111;vertical-align:-1px;box-sizing:border-box;background:transparent}
+  .dot.d{background:#111} .dot.a{background:linear-gradient(90deg,#111 50%,transparent 50%)}
+  .legend .dot{vertical-align:-2px}
+  .legend{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:12px;color:var(--muted);margin-top:8px}
+  @media (max-width:640px){
+    main{padding:10px} header{padding:10px 12px;gap:8px} header h1{font-size:18px}
+    header h1 small{display:block;margin:0;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60vw}
+    header h1{flex-wrap:wrap} nav{display:flex;gap:6px;width:100%} nav button{flex:1;padding:8px}
+    .bar{gap:8px} .bar.settings{gap:8px 14px} button.primary,button.ghost{padding:8px 10px;font-size:13px}
+    .card{padding:12px;border-radius:10px} .plan-days{grid-template-columns:1fr}
+    th,td{padding:5px 6px}
+  }
+  .legend b{color:var(--ink);font-weight:700}
   .grid td.p{text-align:center;color:var(--muted)}
   .grid td.s{text-align:center;color:var(--muted);opacity:.6}
+  .grid td.day.click{cursor:pointer} .grid td.day.click:hover{outline:2px solid var(--accent);outline-offset:-2px}
+  .car .alt,.car .pq{grid-column:2/-1;font-size:12px;color:var(--muted)} .car .pq{opacity:.65}
+  .car .alt::before{content:"↳ ";opacity:.6}
+  #history .car{grid-template-columns:1fr auto auto} #history .car .mini{grid-column:auto}
+  select.mk{font-size:12px;padding:3px 2px}
+  .switch{display:inline-flex;align-items:center;gap:8px;cursor:pointer;user-select:none}
+  .switch input{position:absolute;opacity:0;width:0;height:0}
+  .switch .track{width:38px;height:22px;border-radius:999px;background:var(--line);position:relative;transition:background .2s;flex:none}
+  .switch .track::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:var(--card);box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .2s}
+  .switch input:checked+.track{background:var(--accent)} .switch input:checked+.track::after{transform:translateX(16px)}
+  .switch input:focus-visible+.track{outline:2px solid var(--accent);outline-offset:2px}
+  input.cap{width:48px;text-align:center} input.cap::placeholder{color:var(--muted);opacity:.7}
+  th.capcol,td.capcol{background:var(--soft)}
   .bar-eq{height:8px;background:var(--line);border-radius:4px;overflow:hidden;min-width:120px}
   .bar-eq i{display:block;height:100%;background:var(--accent)}
-  .hidden{display:none}
+  .hidden{display:none!important}
   footer{color:var(--muted);font-size:12px;text-align:center;padding:20px}
   @media print{
     header,.bar,footer,.noprint,#tab-horaris{display:none!important}
     #tab-pla{display:block!important} #printTitle{display:block!important}
     body{background:#fff;color:#000;font-size:12px} .card{break-inside:avoid;border:1px solid #ccc;background:#fff}
     .plan-days{grid-template-columns:repeat(2,1fr)} .grid td.c{background:#e4efe9}
-    @page{margin:12mm}
+    *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    /* La hoja 1 es la rejilla; el detalle sólo si está marcado "incluir detalle" */
+    #weekCard,#plan,#eqCard,#warnings{display:none}
+    body.print-detail #weekCard,body.print-detail #eqCard{display:block} body.print-detail #plan{display:grid}
+    body.print-detail #weekCard{break-before:page}
+    #gridCard{border:0;padding:0} #gridCard h2{display:none}
+    .v6{font-size:9px;width:100%} .v6 td.cell{min-width:12px;width:auto} .v6 th,.v6 td{padding:4px 1px} .v6 td.on{font-size:10px}
+    .v6 th.timeh{writing-mode:vertical-rl;transform:rotate(180deg);padding:3px 0;font-size:8px;height:32px}
+    .v6 th.name,.v6 td.name{font-size:10px;width:70px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:70px}
+    .dot{width:9px;height:9px;border-width:1.5px} .v6 td.on small{font-size:7px}
+    .legend{font-size:10px;margin-top:10px}
+    .v6 th.dayh{background:#1f5f4a!important;color:#fff!important} .v6 th.dirh{background:#e4efe9!important}
+    .v6 tr.odd td.cell:not(.on),.v6 tr.odd td.name{background:#f3f5f4!important}
+    .v6 th.name,.v6 td.name{position:static;background:transparent}
+    @page{size:A4 landscape;margin:9mm}
   }
 </style>
 <script src="vendor/xlsx.full.min.js" defer></script>
@@ -77,11 +155,17 @@
 
 <main>
   <section id="tab-horaris">
-    <div class="bar">
+    <div class="bar settings">
       <label>Plazas por coche <input id="cap" type="number" min="2" max="9" class="t"></label>
+      <label title="Periodo durante el que se repite este reparto">Ciclo del <input id="cycStart" type="date"> al <input id="cycEnd" type="date"></label>
+      <label class="switch" title="Permite poner a cada persona un máximo de días conduciendo a la semana"><input type="checkbox" id="useCaps"><span class="track"></span>Topes de días</label>
+      <label class="switch" title="Las horas se eligen de una lista fija (las del centro) en vez de teclearse"><input type="checkbox" id="fixedTimes"><span class="track"></span>Horas fijas</label>
+      <label id="bellWrap" class="hidden" title="Horas del centro, separadas por comas. Puedes cambiarlas para otro centro u otro curso.">Lista <input id="bellTimes" type="text" placeholder="8:00, 8:55, 9:50, …"></label>
+    </div>
+    <div class="bar">
       <button class="ghost" id="addPerson">+ Añadir persona</button>
       <button class="ghost" id="blank">Empezar de cero</button>
-      <span style="flex:1"></span>
+      <span class="sep"></span>
       <button class="ghost" id="export">Exportar JSON</button>
       <button class="ghost" id="importBtn">Importar JSON</button>
       <input id="importFile" type="file" accept="application/json" class="hidden">
@@ -95,8 +179,15 @@
       <table id="tbl"></table>
       <p class="mini" style="margin:10px 0 0">
         Horas en formato <b>8:00</b>. Deja entrada y salida vacías si ese día no viene.
-        <b>Espera hasta</b>: hora máxima a la que acepta salir si así va acompañada.
-        <b>Comparte</b>: desmarca si ese día va por su cuenta. Una persona <b>inactiva</b> queda fuera de la rueda sin perder sus horarios.
+        Una casilla en <b style="color:var(--warn)">rojo</b> tiene una hora imposible (pasa el ratón para ver el motivo); ese día queda fuera del reparto hasta que la corrijas.
+        <b>Entra desde</b> y <b>Espera hasta</b>: horas flexibles. La app mueve a la persona a esa hora sólo si a la suya iría sola o si así hace falta un coche menos; lo señala con ⏳.
+        <b>Marca</b>: <i>Auto</i> deja que la app decida; <i>Conduce</i> fija a esa persona como conductora ese día;
+        <i>Paquete</i> va de pasajera seguro (nunca conduce ese día, pero sí comparte); <i>No comparte</i> va por su cuenta.
+        Una persona <b>inactiva</b> queda fuera de la rueda sin perder sus horarios.
+        <b>Ciclo</b>: fechas entre las que se repite este reparto; salen en el rótulo, el PDF y el Excel.
+        <b>Horas fijas</b>: con el interruptor encendido, las horas se eligen de la lista del centro (editable) en vez de teclearse; una hora guardada que no esté en la lista se muestra con ⚠ para que la revises.
+        <b>Topes de días</b>: con el interruptor encendido aparece la columna <b>Máx./sem.</b>; si pones un número, esa persona no conducirá más días a la semana que ésos, salvo que no haya otra forma de cubrir una franja (entonces la app avisa). Vacío = sin tope.
+        Con <b>▲ ▼</b> cambias el orden de la lista; el reparto y el Excel lo respetan.
         Los cambios se guardan automáticamente en este navegador; usa <b>Exportar</b> para tener copia y <b>Importar</b> para recuperarla en otro dispositivo.
       </p>
     </div>
@@ -104,22 +195,35 @@
   </section>
 
   <section id="tab-pla" class="hidden">
-    <div id="printTitle" class="hidden" style="margin-bottom:10px"><h1 style="margin:0;font-size:20px">Cotxà · Reparto semanal</h1><div class="mini" id="printDate"></div></div>
+    <div id="printTitle" class="hidden" style="margin-bottom:10px"><h1 style="margin:0;font-size:20px">Cotxà · Reparto semanal</h1><div id="printCycle" style="font-size:14px;margin-top:2px"></div><div class="mini" id="printDate"></div></div>
     <div class="bar noprint">
       <button class="primary" id="go2">Recalcular</button>
+      <button class="ghost" id="closeCycle" title="Guarda el resumen de este ciclo en el historial y vacía las fechas para el siguiente">Cerrar ciclo</button>
       <button class="ghost" id="xlsx">Descargar Excel</button>
       <button class="ghost" onclick="window.print()">Guardar PDF / Imprimir</button>
+      <label class="switch mini" title="Añade al PDF una segunda hoja con la semana de un vistazo, los coches por día y la equidad"><input type="checkbox" id="printDetail"><span class="track"></span>PDF con detalle por día</label>
       <span class="mini" id="planMeta"></span>
     </div>
     <div id="warnings"></div>
-    <div class="card"><h2 style="margin:0 0 8px;font-size:17px">Semana de un vistazo</h2>
-      <p class="mini" style="margin:0 0 8px">🚗 conduce (ida y vuelta) · · pasajero · — va por su cuenta · vacío: no viene</p>
+    <div class="card" id="gridCard"><h2 style="margin:0 0 8px;font-size:17px">Rejilla</h2>
+      <div class="scroll"><table id="v6" class="v6"></table></div>
+      <div class="legend"><span><i class="dot d"></i> conduce</span><span><i class="dot a"></i> también podría conducir</span><span><i class="dot"></i> paquete (va de pasajero/a)</span><span><b>⏳</b> espera a una salida más tarde</span><span><b>📌</b> marca manual</span><span>Cada color es un coche. Quien va por su cuenta ese día no aparece.</span></div>
+    </div>
+    <div class="card" id="weekCard"><h2 style="margin:0 0 8px;font-size:17px">Semana de un vistazo</h2>
+      <p class="mini" style="margin:0 0 8px">🚗 conduce (ida y vuelta) · · pasajero · ○ paquete · — va por su cuenta · ⚠ horas imposibles (fuera del reparto) · vacío: no viene · 📌 marca manual.
+        <span class="noprint">Haz clic en una casilla para alternar Auto → Conduce → Paquete; el reparto se recalcula.</span></p>
       <div class="scroll"><table id="gridTbl" class="grid"></table></div>
     </div>
     <div class="plan-days" id="plan"></div>
-    <div class="card"><h2 style="margin:0 0 8px;font-size:17px">Equidad</h2>
-      <p class="mini" style="margin:0 0 8px">Días conduciendo respecto a los días que comparte coche.</p>
+    <div class="card" id="eqCard"><h2 style="margin:0 0 8px;font-size:17px">Equidad</h2>
+      <p class="mini" style="margin:0 0 8px">Días conduciendo respecto a los días que comparte coche.
+        <b>Le toca</b>: días/semana que le corresponderían según lo que comparte.
+        <b>Saldo</b>: días de conducir acumulados en los ciclos cerrados, de más (+, perjudicado) o de menos (−); la app lo compensa al calcular.</p>
       <div class="scroll"><table id="eqTbl"></table></div>
+    </div>
+    <div class="card noprint" id="historyCard"><h2 style="margin:0 0 8px;font-size:17px">Historial de ciclos</h2>
+      <p class="mini" style="margin:0 0 8px">Cada vez que pulsas <b>Cerrar ciclo</b> se guarda aquí el resumen. Sólo lo ves tú; no sale en el PDF.</p>
+      <div id="history"></div>
     </div>
   </section>
 </main>
@@ -129,23 +233,91 @@
 const SEED = __SEED__;
 const DAYS = ["dilluns","dimarts","dimecres","dijous","divendres"];
 const KEY = "cotxa.state.v1";
+const MARKS = ["auto","drive","pax","solo"];
+// Horas del centro por defecto (modo "Horas fijas"); el organizador puede editarlas.
+const BELL_DEFAULT = ["8:00","8:55","9:50","10:45","11:10","12:05","13:00","13:55","14:10","15:05"];
+const MARK_LABEL = {auto:"Auto", drive:"Conduce", pax:"Paquete", solo:"No comparte"};
+// Marca por persona y día: auto (decide la app) · drive (conduce sí o sí) · pax (paquete: nunca conduce) · solo (no comparte).
+// Los JSON antiguos sólo traían share:"si"/"no"; se convierten al cargar.
+function normalize(st){
+  if(!Array.isArray(st.history)) st.history=[];
+  st.useCaps=!!st.useCaps; st.printDetail=!!st.printDetail;
+  st.fixedTimes=!!st.fixedTimes;
+  if(!Array.isArray(st.bellTimes)||!st.bellTimes.length) st.bellTimes=[...BELL_DEFAULT];
+  for(const p of st.people||[]) if(!(Number.isInteger(p.maxDrive)&&p.maxDrive>=0)) delete p.maxDrive;
+  for(const p of st.people||[]){ p.days??={}; for(const d of DAYS){ const x=p.days[d]; if(!x) continue;
+    if(!MARKS.includes(x.mark)) x.mark = x.share==="no" ? "solo" : "auto"; delete x.share; } }
+  return st;
+}
 
 // ---------- estado ----------
 let state = load();
 function load(){
-  try{ const s = localStorage.getItem(KEY); if(s) return JSON.parse(s); }catch(e){}
-  return structuredClone(SEED);
+  try{ const s = localStorage.getItem(KEY); if(s) return normalize(JSON.parse(s)); }catch(e){}
+  return normalize(structuredClone(SEED));
 }
 function save(){ try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(e){} }
-function blankDays(){ const d={}; for(const k of DAYS) d[k]={in:"",out:"",flex:"",share:"si"}; return d; }
+function blankDays(){ const d={}; for(const k of DAYS) d[k]={in:"",out:"",flex:"",mark:"auto"}; return d; }
+
+// ---------- ciclo (periodo en que se repite el reparto) ----------
+const isoToDate=s=>{ const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(s||""); return m?new Date(+m[1],+m[2]-1,+m[3]):null; };
+const fmtDate=(d,withYear=true)=>d.toLocaleDateString("es-ES",{day:"numeric",month:"long",...(withYear?{year:"numeric"}:{})});
+function cycleInfo(){
+  const c=state.cycle||{}; const a=isoToDate(c.start), b=isoToDate(c.end);
+  if(!a&&!b) return {label:"",weeks:0,error:""};
+  if(!a||!b) return {label:"",weeks:0,error:"Indica las dos fechas del ciclo (inicio y fin) en Horarios."};
+  if(b<a) return {label:"",weeks:0,error:"La fecha de fin del ciclo es anterior a la de inicio."};
+  const weeks=Math.max(1,Math.round((b-a)/864e5/7));
+  const sameYear=a.getFullYear()===b.getFullYear();
+  return {label:`del ${fmtDate(a,!sameYear)} al ${fmtDate(b)}`, weeks, error:"", start:c.start, end:c.end};
+}
+function renderCycle(){
+  const ci=cycleInfo();
+  $("#season").textContent = ci.label ? `Reparto ${ci.label}` : "Reparto de coche compartido";
+  $("#printCycle").textContent = ci.label ? `Ciclo ${ci.label} · ${ci.weeks} semana${ci.weeks>1?"s":""}` : "";
+}
+
+// ---------- historial: saldo acumulado por persona ----------
+// Saldo (días): suma, por ciclo cerrado, de (días conduciendo − lo que le tocaba) × semanas.
+function balance(st){
+  const b={};
+  for(const h of st.history||[]) for(const n in h.people){ const x=h.people[n]; b[n]=(b[n]||0)+(x.driving-x.fair)*h.weeks; }
+  return b;
+}
+// Compensación que entra en el solver: el saldo repartido entre las semanas del ciclo nuevo
+// (12 si aún no hay fechas). Alguien con +6 días y 12 semanas cuenta como si ya condujera 0,5 días/semana.
+function biasFor(st){
+  const weeks=cycleInfo().weeks||12, b=balance(st), out={};
+  for(const n in b) if(Math.abs(b[n])>1e-9) out[n]=b[n]/weeks;
+  return out;
+}
+const fmtNum=x=>(Math.round(x*10)/10).toLocaleString("es-ES",{maximumFractionDigits:1});
+const fmtSigned=x=>(x>0?"+":"")+fmtNum(x);
 
 // ---------- solver (port de src/cotxa/solver.py) ----------
 function normTime(t){ t=(t||"").trim().replace(".",":").replace(",",":"); if(!t) return ""; const m=t.match(/^(\d{1,2}):?(\d{2})$/); if(!m) return t; return `${+m[1]}:${m[2]}`; }
 function mins(t){ const [h,m]=t.split(":").map(Number); return h*60+(m||0); }
+// Comprobación de horas (mismos textos que validate_trip en solver.py). Devuelve {field, msg} o null.
+function validMins(t){ const m=/^(\d{1,2}):(\d{2})$/.exec(t||""); if(!m||+m[1]>23||+m[2]>59) return null; return +m[1]*60+ +m[2]; }
+function validateDay(x){
+  const f={in:["entrada",normTime(x.in)], out:["salida",normTime(x.out)], inflex:["entra desde",normTime(x.inflex)], flex:["espera hasta",normTime(x.flex)]};
+  for(const k in f){ const [label,v]=f[k]; if(v && validMins(v)===null) return {field:k, msg:`hora de ${label} no válida: «${v}» (usa el formato 8:00)`}; }
+  const a=validMins(f.in[1]), d=validMins(f.out[1]);
+  if(a===null||d===null) return {field:a===null?"in":"out", msg:"falta la hora de entrada o de salida"};
+  if(d<=a) return {field:"out", msg:`la salida (${f.out[1]}) no es posterior a la entrada (${f.in[1]})`};
+  if(f.inflex[1] && validMins(f.inflex[1])>a) return {field:"inflex", msg:`«entra desde» (${f.inflex[1]}) es posterior a la entrada (${f.in[1]})`};
+  if(f.flex[1] && validMins(f.flex[1])<d) return {field:"flex", msg:`«espera hasta» (${f.flex[1]}) es anterior a la salida (${f.out[1]})`};
+  return null;
+}
 
-function solve(st){
+function solve(st, bias){
   const cap = +st.capacity || 4;
   const warnings = [];
+  bias = bias || {};
+  const load=p=>driving[p]+(bias[p]||0); // carga = días conduciendo + compensación de ciclos anteriores
+  // tope opcional de días/semana por persona (sólo si el interruptor "Topes de días" está encendido)
+  const maxDrive={}; if(st.useCaps) for(const p of st.people) if(Number.isInteger(p.maxDrive)) maxDrive[p.name]=p.maxDrive;
+  const atCap=p=>maxDrive[p]!==undefined && driving[p]>=maxDrive[p];
   // trayectos activos
   let trips=[];
   for(const p of st.people){
@@ -153,33 +325,47 @@ function solve(st){
     for(const d of DAYS){
       const h=p.days[d]; if(!h) continue;
       const tin=normTime(h.in), tout=normTime(h.out);
-      if(!tin && !tout) continue;
-      if(!tin || !tout){ warnings.push(`${p.name}, ${d}: falta la hora de entrada o de salida`); continue; }
-      trips.push({person:p.name, day:d, in:tin, out:tout, flex:normTime(h.flex), share:h.share!=="no"});
+      if(!tin && !tout && !normTime(h.inflex) && !normTime(h.flex)) continue;
+      const bad=validateDay(h);
+      if(bad){ warnings.push(`${p.name}, ${d}: ${bad.msg}`); continue; }
+      trips.push({person:p.name, day:d, in:tin, out:tout, inflex:normTime(h.inflex), flex:normTime(h.flex), mark:h.mark||"auto", share:h.mark!=="solo"});
     }
   }
-  // flex: si saldría sola pero acepta esperar y a la hora flexible hay gente, se mueve
-  const cnt={}; for(const t of trips) if(t.share) cnt[t.day+"|"+t.out]=(cnt[t.day+"|"+t.out]||0)+1;
+  // horas flexibles ("entra desde" / "espera hasta"): la persona se mueve a su hora flexible si a la suya
+  // iría sola y en la flexible hay compañía, o si así hace falta un coche menos. Persona a persona, en orden.
+  const cnt={}; const ck=(t,dir,time)=>`${t.day}|${dir}|${time}`;
+  for(const t of trips) if(t.share){ cnt[ck(t,"entrada",t.in)]=(cnt[ck(t,"entrada",t.in)]||0)+1; cnt[ck(t,"salida",t.out)]=(cnt[ck(t,"salida",t.out)]||0)+1; }
+  const ncars=n=>Math.ceil(n/cap);
+  const shouldMove=(t,dir,own,flex)=>{ if(!flex||flex===own) return false; const a=cnt[ck(t,dir,own)]||0, b=cnt[ck(t,dir,flex)]||0;
+    return (a===1&&b>=1) || (ncars(a)+ncars(b) > ncars(a-1)+ncars(b+1)); };
   for(const t of trips){
-    if(t.share && t.flex && cnt[t.day+"|"+t.out]===1 && (cnt[t.day+"|"+t.flex]||0)>=1){ t.out=t.flex; t.moved=true; }
+    if(!t.share) continue;
+    if(shouldMove(t,"entrada",t.in,t.inflex)){ cnt[ck(t,"entrada",t.in)]--; t.in=t.inflex; cnt[ck(t,"entrada",t.in)]=(cnt[ck(t,"entrada",t.in)]||0)+1; t.movedIn=true; }
+    if(shouldMove(t,"salida",t.out,t.flex)){ cnt[ck(t,"salida",t.out)]--; t.out=t.flex; cnt[ck(t,"salida",t.out)]=(cnt[ck(t,"salida",t.out)]||0)+1; t.movedOut=true; }
+    t.moved=!!(t.movedIn||t.movedOut);
   }
-  const roles={}, members={}, personSlots={}, sharing={}, driving={};
+  const roles={}, members={}, personSlots={}, sharing={}, driving={}, paxDays={};
+  const locked=new Set(); // marcas manuales: el solver no las toca
   const sk=(day,dir,time)=>`${day}|${dir}|${time}`;
   for(const t of trips){
     const k=t.person+"|"+t.day;
     if(!t.share){ roles[k]="solo"; continue; }
     roles[k]="pasajero";
+    sharing[t.person]=(sharing[t.person]||0)+1; driving[t.person]??=0;
+    if(t.mark==="drive"){ roles[k]="conductor"; driving[t.person]++; locked.add(k); }
+    else if(t.mark==="pax"){ locked.add(k); paxDays[t.person]=(paxDays[t.person]||0)+1; }
     const a=sk(t.day,"entrada",t.in), b=sk(t.day,"salida",t.out);
     (members[a]??=[]).push(t.person); (members[b]??=[]).push(t.person);
     personSlots[k]=[a,b];
-    sharing[t.person]=(sharing[t.person]||0)+1; driving[t.person]??=0;
   }
+  for(const p in paxDays) if(paxDays[p]===sharing[p]) warnings.push(`${p}: marcado 'paquete' todos sus días; no conducirá nunca`);
+  for(const p in sharing) if(maxDrive[p]!==undefined && driving[p]>maxDrive[p]) warnings.push(`${p}: las marcas 'conduce' (${driving[p]} días) superan su tope de ${maxDrive[p]}`);
   const required={}; for(const s in members) required[s]=Math.ceil(members[s].length/cap);
   const dayOf=s=>s.split("|")[0];
   const driversIn=s=>members[s].filter(p=>roles[p+"|"+dayOf(s)]==="conductor").length;
   const deficit=s=>required[s]-driversIn(s);
   const feasible=()=>Object.keys(members).every(s=>deficit(s)<=0);
-  const fairness=()=>{ const r=Object.keys(sharing).map(p=>driving[p]/sharing[p]); if(!r.length) return 0; const m=r.reduce((a,b)=>a+b,0)/r.length; return r.reduce((a,x)=>a+(x-m)**2,0); };
+  const fairness=()=>{ const r=Object.keys(sharing).map(p=>load(p)/sharing[p]); if(!r.length) return 0; const m=r.reduce((a,b)=>a+b,0)/r.length; return r.reduce((a,x)=>a+(x-m)**2,0); };
 
   // 1. greedy de cobertura
   for(;;){
@@ -187,10 +373,13 @@ function solve(st){
     for(const s in members){ const d=deficit(s); if(d>best){best=d;slot=s;} }
     if(!slot || best<=0) break;
     const day=dayOf(slot);
-    const cands=members[slot].filter(p=>roles[p+"|"+day]==="pasajero");
+    let cands=members[slot].filter(p=>roles[p+"|"+day]==="pasajero" && !locked.has(p+"|"+day));
+    const underCap=cands.filter(p=>!atCap(p));
+    if(cands.length && !underCap.length) warnings.push(`${slot.replace(/\|/g," ")}: sólo queda gente en su tope de días; alguien conducirá un día de más`);
+    else cands=underCap;
     if(!cands.length){ warnings.push(`${slot.replace(/\|/g," ")}: faltan conductores (${driversIn(slot)} coches para ${members[slot].length} personas)`); required[slot]=driversIn(slot); continue; }
     cands.sort((p,q)=>{
-      const sp=driving[p]/sharing[p], sq=driving[q]/sharing[q]; if(sp!==sq) return sp-sq;
+      const sp=load(p)/sharing[p], sq=load(q)/sharing[q]; if(sp!==sq) return sp-sq;
       const op=personSlots[p+"|"+day].find(s=>s!==slot), oq=personSlots[q+"|"+day].find(s=>s!==slot);
       const dp=Math.max(deficit(op),0), dq=Math.max(deficit(oq),0); if(dp!==dq) return dq-dp;
       return p.localeCompare(q);
@@ -202,13 +391,13 @@ function solve(st){
   while(improved && guard++<500){
     improved=false; const base=fairness();
     outer: for(const k of Object.keys(roles)){
-      if(roles[k]!=="conductor") continue;
+      if(roles[k]!=="conductor" || locked.has(k)) continue;
       const [p,day]=k.split("|");
       roles[k]="pasajero"; driving[p]--;
       if(feasible() && fairness()<=base){ improved=true; break; }
       const pool=new Set(); for(const s of personSlots[k]) for(const m of members[s]) pool.add(m);
       for(const q of pool){
-        if(q===p || roles[q+"|"+day]!=="pasajero") continue;
+        if(q===p || roles[q+"|"+day]!=="pasajero" || locked.has(q+"|"+day) || atCap(q)) continue;
         roles[q+"|"+day]="conductor"; driving[q]++;
         if(feasible() && fairness()<base-1e-9){ improved=true; break outer; }
         roles[q+"|"+day]="pasajero"; driving[q]--;
@@ -216,7 +405,17 @@ function solve(st){
       roles[k]="conductor"; driving[p]++;
     }
   }
-  // 3. coches
+  // 3. coches y "también podrían"
+  const ratios=Object.keys(sharing).map(p=>load(p)/sharing[p]);
+  const meanRatio=ratios.length?ratios.reduce((a,b)=>a+b,0)/ratios.length:0;
+  const couldDrive=(q,p,day)=>{ // ¿podría q llevar el coche en lugar de p sin pasarse de lo que le toca?
+    if(locked.has(q+"|"+day) || atCap(q)) return false;
+    if(load(q)>=meanRatio*sharing[q]-1e-9) return false; // ya llega a lo que le toca
+    roles[p+"|"+day]="pasajero"; roles[q+"|"+day]="conductor";
+    const ok=feasible();
+    roles[p+"|"+day]="conductor"; roles[q+"|"+day]="pasajero";
+    return ok;
+  };
   const cars=[];
   const slots=Object.keys(members).sort((a,b)=>{const A=a.split("|"),B=b.split("|"); return DAYS.indexOf(A[0])-DAYS.indexOf(B[0])||A[1].localeCompare(B[1])||mins(A[2])-mins(B[2]);});
   for(const s of slots){
@@ -224,37 +423,55 @@ function solve(st){
     const drv=members[s].filter(p=>roles[p+"|"+day]==="conductor").sort();
     const pax=members[s].filter(p=>roles[p+"|"+day]==="pasajero").sort();
     if(!drv.length){ warnings.push(`${day} ${dir} ${time}: nadie puede conducir (${pax.join(", ")})`); continue; }
-    const sc=drv.map(d=>({day,dir,time,driver:d,passengers:[]}));
+    const sc=drv.map(d=>({day,dir,time,driver:d,passengers:[],alternatives:[]}));
     pax.forEach((p,i)=>{ const c=sc[i%sc.length]; if(c.passengers.length+1>=cap) warnings.push(`${day} ${dir} ${time}: ${p} no cabe`); c.passengers.push(p); });
+    for(const c of sc) c.alternatives=c.passengers.filter(q=>couldDrive(q,c.driver,day));
     cars.push(...sc);
   }
-  return {roles, cars, sharing, driving, trips, warnings, cap};
+  return {roles, cars, sharing, driving, trips, warnings, cap, locked, meanRatio, bias};
 }
 
 // ---------- UI: horarios ----------
 const $=s=>document.querySelector(s);
+const activeNames=()=>state.people.filter(p=>p.active).map(p=>p.name); // en el orden de la tabla
 function renderTable(){
   const t=$("#tbl");
-  let h=`<thead><tr><th>Persona</th><th>Activa</th>`;
-  for(const d of DAYS) h+=`<th class="day" colspan="4">${d}</th>`;
-  h+=`<th></th></tr><tr><th></th><th></th>`;
-  for(const d of DAYS) h+=`<th class="day">Entrada</th><th>Salida</th><th>Espera hasta</th><th>Comparte</th>`;
+  const caps=!!state.useCaps;
+  let h=`<thead><tr><th>Persona</th><th>Activa</th>${caps?`<th class="capcol" title="Máximo de días conduciendo a la semana (vacío = sin tope)">Máx./sem.</th>`:""}`;
+  for(const d of DAYS) h+=`<th class="day" colspan="5">${d}</th>`;
+  h+=`<th></th></tr><tr><th></th><th></th>${caps?`<th class="capcol"></th>`:""}`;
+  for(const d of DAYS) h+=`<th class="day">Entrada</th><th>Entra desde</th><th>Salida</th><th>Espera hasta</th><th>Marca</th>`;
   h+=`<th></th></tr></thead><tbody>`;
   state.people.forEach((p,i)=>{
     h+=`<tr class="${p.active?"":"inactive"}"><td><input type="text" data-i="${i}" data-f="name" value="${esc(p.name)}" style="width:110px"></td>`;
     h+=`<td style="text-align:center"><input type="checkbox" data-i="${i}" data-f="active" ${p.active?"checked":""}></td>`;
+    if(caps) h+=`<td class="capcol" style="text-align:center"><input class="cap" type="number" min="0" max="5" data-i="${i}" data-f="maxDrive" value="${Number.isInteger(p.maxDrive)?p.maxDrive:""}" placeholder="∞"></td>`;
     for(const d of DAYS){
-      const x=p.days[d]||{in:"",out:"",flex:"",share:"si"}; const off=!x.in&&!x.out;
-      h+=`<td class="day"><input class="t ${off?"off":""}" type="text" data-i="${i}" data-d="${d}" data-f="in" value="${esc(x.in)}" placeholder="–"></td>`;
-      h+=`<td><input class="t ${off?"off":""}" type="text" data-i="${i}" data-d="${d}" data-f="out" value="${esc(x.out)}" placeholder="–"></td>`;
-      h+=`<td><input class="t ${off?"off":""}" type="text" data-i="${i}" data-d="${d}" data-f="flex" value="${esc(x.flex)}" placeholder="–"></td>`;
-      h+=`<td style="text-align:center"><input type="checkbox" data-i="${i}" data-d="${d}" data-f="share" ${x.share!=="no"?"checked":""} ${off?"disabled":""}></td>`;
+      const x=p.days[d]||{in:"",out:"",flex:"",mark:"auto"}; const off=!x.in&&!x.out&&!x.inflex&&!x.flex;
+      const v=off?null:validateDay(x); const bad=f=>v&&v.field===f?` bad" title="${esc(v.msg)}`:"";
+      // campo de hora: texto libre, o desplegable con las horas del centro si "Horas fijas" está encendido
+      const timeField=(f,val,title)=>{
+        const cls=`t ${off?"off":""}${bad(f)}`, t=title&&!(v&&v.field===f)?` title="${title}"`:"";
+        if(!state.fixedTimes) return `<input class="${cls}" type="text" data-i="${i}" data-d="${d}" data-f="${f}" value="${esc(val)}" placeholder="–"${t}>`;
+        const opts=[...state.bellTimes]; const odd=val&&!opts.includes(val);
+        return `<select class="${cls}" data-i="${i}" data-d="${d}" data-f="${f}"${t}><option value="">–</option>${opts.map(o=>`<option value="${o}" ${o===val?"selected":""}>${o}</option>`).join("")}${odd?`<option value="${esc(val)}" selected>⚠ ${esc(val)}</option>`:""}</select>`;
+      };
+      h+=`<td class="day">${timeField("in",x.in)}</td>`;
+      h+=`<td>${timeField("inflex",x.inflex||"","Acepta entrar antes, desde esta hora")}</td>`;
+      h+=`<td>${timeField("out",x.out)}</td>`;
+      h+=`<td>${timeField("flex",x.flex||"","Acepta salir después, hasta esta hora")}</td>`;
+      h+=`<td><select class="mk" data-i="${i}" data-d="${d}" data-f="mark" ${off?"disabled":""}>${MARKS.map(m=>`<option value="${m}" ${(x.mark||"auto")===m?"selected":""}>${MARK_LABEL[m]}</option>`).join("")}</select></td>`;
     }
-    h+=`<td><button class="ghost danger" data-del="${i}" title="Eliminar">✕</button></td></tr>`;
+    h+=`<td style="white-space:nowrap"><button class="ghost mv" data-mv="${i}" data-dir="-1" title="Subir" ${i===0?"disabled":""}>▲</button> <button class="ghost mv" data-mv="${i}" data-dir="1" title="Bajar" ${i===state.people.length-1?"disabled":""}>▼</button> <button class="ghost danger" data-del="${i}" title="Eliminar">✕</button></td></tr>`;
   });
   t.innerHTML=h+"</tbody>";
   $("#cap").value=state.capacity;
+  $("#cycStart").value=state.cycle?.start||""; $("#cycEnd").value=state.cycle?.end||"";
+  $("#useCaps").checked=!!state.useCaps;
+  $("#fixedTimes").checked=!!state.fixedTimes; $("#bellWrap").classList.toggle("hidden",!state.fixedTimes); $("#bellTimes").value=state.bellTimes.join(", ");
+  $("#printDetail").checked=!!state.printDetail; document.body.classList.toggle("print-detail",!!state.printDetail);
   $("#sampleNote").classList.toggle("hidden", !state.sample);
+  renderCycle();
 }
 function esc(s){ return String(s??"").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;"); }
 $("#tbl").addEventListener("change",e=>{
@@ -263,72 +480,191 @@ $("#tbl").addEventListener("change",e=>{
   delete state.sample; // en cuanto se edita algo ya no son los datos de ejemplo
   if(f==="name") p.name=el.value.trim()||p.name;
   else if(f==="active") p.active=el.checked;
-  else { p.days[d]??={in:"",out:"",flex:"",share:"si"}; if(f==="share") p.days[d].share=el.checked?"si":"no"; else p.days[d][f]=normTime(el.value); }
+  else if(f==="maxDrive"){ const v=el.value.trim(); if(v===""||!Number.isInteger(+v)||+v<0) delete p.maxDrive; else p.maxDrive=Math.min(5,+v); }
+  else { p.days[d]??={in:"",out:"",flex:"",mark:"auto"}; if(f==="mark") p.days[d].mark=el.value; else p.days[d][f]=normTime(el.value); }
   save(); renderTable();
 });
 $("#tbl").addEventListener("click",e=>{
+  const m=e.target.closest("[data-mv]");
+  if(m){ const i=+m.dataset.mv, j=i+(+m.dataset.dir); if(j<0||j>=state.people.length) return;
+    [state.people[i],state.people[j]]=[state.people[j],state.people[i]]; delete state.sample; save(); renderTable(); return; }
   const b=e.target.closest("[data-del]"); if(!b) return;
   const p=state.people[+b.dataset.del];
   if(confirm(`¿Eliminar a ${p.name} y sus horarios? (Si es temporal, mejor desmarca "Activa".)`)){ state.people.splice(+b.dataset.del,1); save(); renderTable(); }
 });
 $("#cap").addEventListener("change",e=>{ state.capacity=Math.max(2,+e.target.value||4); save(); });
+$("#useCaps").addEventListener("change",e=>{ state.useCaps=e.target.checked; delete state.sample; save(); renderTable(); });
+$("#fixedTimes").addEventListener("change",e=>{ state.fixedTimes=e.target.checked; delete state.sample; save(); renderTable(); });
+$("#bellTimes").addEventListener("change",e=>{
+  const raw=e.target.value.split(/[,\s;]+/).map(normTime).filter(Boolean);
+  const bad=raw.filter(t=>validMins(t)===null), good=[...new Set(raw.filter(t=>validMins(t)!==null))].sort((a,b)=>mins(a)-mins(b));
+  if(bad.length) alert(`Horas no válidas (usa el formato 8:00): ${bad.join(", ")}`);
+  if(good.length) state.bellTimes=good; else state.bellTimes=[...BELL_DEFAULT];
+  delete state.sample; save(); renderTable();
+});
+for(const id of ["cycStart","cycEnd"]) $("#"+id).addEventListener("change",()=>{
+  state.cycle={start:$("#cycStart").value||"", end:$("#cycEnd").value||""};
+  if(!state.cycle.start&&!state.cycle.end) delete state.cycle;
+  save(); renderCycle();
+});
 $("#addPerson").onclick=()=>{ const n=prompt("Nombre"); if(!n) return; state.people.push({name:n.trim(),active:true,days:blankDays()}); save(); renderTable(); };
 $("#export").onclick=()=>{ const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([JSON.stringify(state,null,2)],{type:"application/json"})); a.download=`cotxa-${new Date().toISOString().slice(0,10)}.json`; a.click(); };
 $("#importBtn").onclick=()=>$("#importFile").click();
-$("#importFile").onchange=async e=>{ const f=e.target.files[0]; if(!f) return; try{ const j=JSON.parse(await f.text()); if(!Array.isArray(j.people)) throw 0; delete j.sample; state=j; save(); renderTable(); alert("Datos importados."); }catch{ alert("El archivo no parece un JSON de Cotxà."); } e.target.value=""; };
+$("#importFile").onchange=async e=>{ const f=e.target.files[0]; if(!f) return; try{ const j=JSON.parse(await f.text()); if(!Array.isArray(j.people)) throw 0; delete j.sample; state=normalize(j); save(); renderTable(); alert("Datos importados."); }catch{ alert("El archivo no parece un JSON de Cotxà."); } e.target.value=""; };
 $("#blank").onclick=()=>{ if(confirm("¿Vaciar la tabla para introducir vuestros datos desde cero? (Exporta antes si quieres conservar algo.)")){ state={capacity:4,people:[]}; save(); renderTable(); } };
 $("#reset").onclick=()=>{ if(confirm("¿Volver a los datos iniciales? Se perderán los cambios de este navegador (exporta antes si quieres copia).")){ state=structuredClone(SEED); save(); renderTable(); } };
 
 // ---------- UI: reparto ----------
 function renderPlan(){
-  const r=solve(state); lastResult=r;
+  const r=solve(state, biasFor(state)); lastResult=r;
   $("#printDate").textContent="Generado el "+new Date().toLocaleDateString("es-ES",{day:"numeric",month:"long",year:"numeric"});
-  $("#planMeta").textContent=`${r.cars.length} coches/semana · ${r.cap} plazas · ${Object.keys(r.sharing).length} personas en la rueda`;
-  $("#warnings").innerHTML=r.warnings.length?`<div class="card"><b>Avisos</b>${r.warnings.map(w=>`<div class="warn">${esc(w)}</div>`).join("")}</div>`:"";
+  const ci=cycleInfo(); renderCycle();
+  const nHist=(state.history||[]).length;
+  $("#planMeta").textContent=`${r.cars.length} coches/semana · ${r.cap} plazas · ${Object.keys(r.sharing).length} personas en la rueda`+(ci.label?` · ciclo ${ci.label} (${ci.weeks} sem.)`:"")+(nHist?` · compensando ${nHist} ciclo${nHist>1?"s":""} cerrado${nHist>1?"s":""}`:"");
+  const warns=[...(ci.error?[ci.error]:[]), ...r.warnings];
+  $("#warnings").innerHTML=warns.length?`<div class="card"><b>Avisos</b>${warns.map(w=>`<div class="warn">${esc(w)}</div>`).join("")}</div>`:"";
   // rejilla
-  const names=state.people.filter(p=>p.active).map(p=>p.name).sort((a,b)=>a.localeCompare(b));
+  const names=activeNames();
   let g=`<thead><tr><th>Persona</th>${DAYS.map(d=>`<th class="day">${d}</th>`).join("")}<th>Conduce</th></tr></thead><tbody>`;
   for(const n of names){
     g+=`<tr><td><b>${esc(n)}</b></td>`;
     for(const d of DAYS){
       const role=r.roles[n+"|"+d]; const t=r.trips.find(x=>x.person===n&&x.day===d);
-      if(!t){ g+=`<td class="day"></td>`; continue; }
+      if(!t){ const x=state.people.find(p=>p.name===n)?.days?.[d]; const v=x&&(x.in||x.out||x.inflex||x.flex)?validateDay(x):null;
+        g+=v?`<td class="day s" title="${esc(v.msg)}">⚠</td>`:`<td class="day"></td>`; continue; }
+      const pin=r.locked.has(n+"|"+d)?" 📌":"";
       const times=`<div class="mini">${t.in} → ${t.out}${t.moved?" ⏳":""}</div>`;
-      if(role==="conductor") g+=`<td class="day c">🚗${times}</td>`;
-      else if(role==="pasajero") g+=`<td class="day p">·${times}</td>`;
+      const click=role==="solo"?"":` class="click" data-n="${esc(n)}" data-d="${d}" title="Clic: Auto → Conduce → Paquete"`;
+      if(role==="conductor") g+=`<td class="day c${click?" click":""}"${click}>🚗${pin}${times}</td>`;
+      else if(role==="pasajero") g+=`<td class="day p${click?" click":""}"${click}>${t.mark==="pax"?"○":"·"}${pin}${times}</td>`;
       else g+=`<td class="day s">—${times}</td>`;
     }
     g+=`<td style="text-align:center">${r.driving[n]??0}/${r.sharing[n]??0}</td></tr>`;
   }
   $("#gridTbl").innerHTML=g+"</tbody>";
-  // por día
+  // por día (cada coche con el mismo color que en la rejilla)
+  const colorOf=new Map(v6Columns(r).map(c=>[c.car,c.color]));
   let h="";
   for(const d of DAYS){
     const cs=r.cars.filter(c=>c.day===d); if(!cs.length) continue;
     h+=`<div class="card plan-day"><h2>${d}</h2>`;
     for(const dir of ["entrada","salida"]){
       h+=`<h3>${dir}</h3>`;
-      for(const c of cs.filter(c=>c.dir===dir)) h+=`<div class="car"><span class="time">${c.time}</span><span class="drv">🚗 ${esc(c.driver)}</span><span class="pax">${c.passengers.length?esc(c.passengers.join(", ")):"(solo)"}</span></div>`;
+      for(const c of cs.filter(c=>c.dir===dir)){
+        const pq=c.passengers.filter(p=>!c.alternatives.includes(p));
+        const pin=r.locked.has(c.driver+"|"+d)?" 📌":"";
+        h+=`<div class="car" style="border-left-color:${colorOf.get(c)}"><span class="time">${c.time}</span><span class="drv">🚗 ${esc(c.driver)}${pin}</span><span class="pax">${c.passengers.length?esc(c.passengers.join(", ")):"(solo)"}</span>`;
+        if(c.alternatives.length) h+=`<span class="alt">también ${c.alternatives.length>1?"podrían":"podría"}: ${esc(c.alternatives.join(", "))}</span>`;
+        if(pq.length&&c.alternatives.length) h+=`<span class="pq">paquete${pq.length>1?"s":""}: ${esc(pq.join(", "))}</span>`;
+        h+=`</div>`;
+      }
     }
     h+=`</div>`;
   }
   $("#plan").innerHTML=h;
+  renderV6(r, names, colorOf);
   // equidad
-  let q=`<thead><tr><th>Persona</th><th>Conduce</th><th>Comparte</th><th>%</th><th></th></tr></thead><tbody>`;
-  for(const n of names){ const dr=r.driving[n]??0, sh=r.sharing[n]??0, pct=sh?Math.round(100*dr/sh):0;
-    q+=`<tr><td>${esc(n)}</td><td>${dr}</td><td>${sh}</td><td>${sh?pct+"%":"–"}</td><td><div class="bar-eq"><i style="width:${pct}%"></i></div></td></tr>`; }
+  const bal=balance(state);
+  let q=`<thead><tr><th>Persona</th><th>Conduce</th><th>Comparte</th><th>%</th><th></th><th>Le toca</th><th>Saldo</th></tr></thead><tbody>`;
+  for(const n of names){ const dr=r.driving[n]??0, sh=r.sharing[n]??0, pct=sh?Math.round(100*dr/sh):0, fair=r.meanRatio*sh, b=bal[n]||0;
+    q+=`<tr><td>${esc(n)}</td><td>${dr}</td><td>${sh}</td><td>${sh?pct+"%":"–"}</td><td><div class="bar-eq"><i style="width:${pct}%"></i></div></td><td>${sh?fmtNum(fair):"–"}</td><td title="${b>0.05?"Perjudicado/a: condujo de más":b<-0.05?"Beneficiado/a: condujo de menos":""}">${Math.abs(b)>0.05?fmtSigned(b):"0"}</td></tr>`; }
   $("#eqTbl").innerHTML=q+"</tbody>";
+  renderHistory();
 }
+// ---------- rejilla al estilo V6 ----------
+// 12 rellenos suaves y bien distinguibles; el texto encima siempre va oscuro.
+const PALETTE=["#bbdefb","#c8e6c9","#ffe0b2","#e1bee7","#fff59d","#b2ebf2","#f8bbd0","#d7ccc8","#dcedc8","#ffccbc","#c5cae9","#b2dfdb"];
+const DIR_LABEL={entrada:"Entradas", salida:"Salidas"};
+function v6Columns(r){
+  // una columna por coche, agrupadas por día y sentido y ordenadas por hora; color distinto a cada coche
+  const cols=[]; let k=0;
+  for(const day of DAYS) for(const dir of ["entrada","salida"]){
+    const cs=r.cars.filter(c=>c.day===day&&c.dir===dir).sort((a,b)=>mins(a.time)-mins(b.time)||a.driver.localeCompare(b.driver));
+    for(const c of cs) cols.push({day,dir,car:c,color:PALETTE[k++%PALETTE.length],no:k});
+  }
+  return cols;
+}
+function v6Kind(c,n){ const car=c.car; return car.driver===n ? "d" : car.alternatives.includes(n) ? "a" : car.passengers.includes(n) ? "p" : ""; }
+function v6Symbol(r,c,n){
+  const k=v6Kind(c,n); if(!k) return "";
+  const t=r.trips.find(x=>x.person===n&&x.day===c.day);
+  const extra=((c.dir==="salida"&&t?.movedOut)||(c.dir==="entrada"&&t?.movedIn)?"⏳":"")+(r.locked.has(n+"|"+c.day)?"📌":"");
+  return `<i class="dot ${k}"></i>`+(extra?`<small>${extra}</small>`:"");
+}
+function renderV6(r, names, colorOf){
+  const cols=v6Columns(r);
+  if(!cols.length){ $("#v6").innerHTML=""; return; }
+  const days=DAYS.filter(d=>cols.some(c=>c.day===d));
+  const span=(f)=>cols.filter(f).length;
+  let h=`<thead><tr><th class="name" rowspan="3">Persona</th>`;
+  days.forEach((d,i)=>{ h+=`${i?'<th class="gap" rowspan="3"></th>':""}<th class="dayh" colspan="${span(c=>c.day===d)}">${d}</th>`; });
+  h+=`<th class="name r" rowspan="3">Persona</th></tr><tr>`;
+  for(const d of days) for(const dir of ["entrada","salida"]){ const n=span(c=>c.day===d&&c.dir===dir); if(n) h+=`<th class="dirh ${dir==="salida"?"out":""}" colspan="${n}">${DIR_LABEL[dir]}</th>`; }
+  h+=`</tr><tr>`;
+  for(const c of cols) h+=`<th class="timeh">${c.time||c.car.time}</th>`;
+  h+=`</tr></thead><tbody>`;
+  names.forEach((n,i)=>{
+    h+=`<tr class="${i%2?"odd":""}"><td class="name">${esc(n)}</td>`;
+    let prevDay=null;
+    for(const c of cols){
+      if(prevDay&&c.day!==prevDay) h+=`<td class="gap"></td>`; prevDay=c.day;
+      const s=v6Symbol(r,c,n);
+      h+=s?`<td class="cell on" style="background:${c.color}" title="${esc(n)} · ${c.day} ${c.dir} ${c.car.time} · coche de ${esc(c.car.driver)}">${s}</td>`:`<td class="cell"></td>`;
+    }
+    h+=`<td class="name r">${esc(n)}</td></tr>`;
+  });
+  $("#v6").innerHTML=h+"</tbody>";
+}
+$("#printDetail").addEventListener("change",e=>{ state.printDetail=e.target.checked; save(); document.body.classList.toggle("print-detail",state.printDetail); });
+
+function renderHistory(){
+  const hs=state.history||[];
+  if(!hs.length){ $("#history").innerHTML=`<p class="mini" style="margin:0">Aún no hay ciclos cerrados.</p>`; return; }
+  $("#history").innerHTML=hs.map((h,i)=>{
+    const ppl=Object.entries(h.people).map(([n,x])=>({n,b:(x.driving-x.fair)*h.weeks})).sort((a,b)=>b.b-a.b);
+    const worst=ppl.filter(x=>x.b>0.05).slice(0,3).map(x=>`${esc(x.n)} ${fmtSigned(x.b)}`).join(", ");
+    const a=isoToDate(h.start), b=isoToDate(h.end);
+    return `<div class="car"><span>Ciclo ${a&&b?`del ${fmtDate(a,a.getFullYear()!==b.getFullYear())} al ${fmtDate(b)}`:"sin fechas"} · ${h.weeks} semana${h.weeks>1?"s":""}</span>`+
+      `<span class="mini">${worst?"más perjudicados: "+worst:"equilibrado"}</span>`+
+      `<button class="ghost danger" data-delh="${i}" title="Borrar este ciclo del historial">✕</button></div>`;
+  }).join("");
+}
+$("#history").addEventListener("click",e=>{
+  const b=e.target.closest("[data-delh]"); if(!b) return;
+  if(confirm("¿Borrar este ciclo del historial? Su saldo dejará de compensarse.")){ state.history.splice(+b.dataset.delh,1); save(); renderPlan(); }
+});
+$("#closeCycle").onclick=()=>{
+  const ci=cycleInfo();
+  if(!ci.label){ alert(ci.error||"Antes de cerrar el ciclo indica sus fechas (inicio y fin) en Horarios. Si ha acabado antes de lo previsto, ajusta la fecha de fin."); return; }
+  if(!confirm(`¿Cerrar el ciclo ${ci.label} (${ci.weeks} semana${ci.weeks>1?"s":""})?\n\nSe guardará el resumen en el historial, se vaciarán las fechas para el siguiente ciclo y los horarios y marcas se mantienen.`)) return;
+  const r=solve(state, biasFor(state));
+  const people={};
+  for(const n in r.sharing) people[n]={driving:r.driving[n], sharing:r.sharing[n], fair:Math.round(r.meanRatio*r.sharing[n]*1000)/1000};
+  state.history.push({start:ci.start, end:ci.end, weeks:ci.weeks, closed:new Date().toISOString().slice(0,10), people});
+  delete state.cycle; delete state.sample; save(); renderTable(); renderPlan();
+  const marks=state.people.filter(p=>p.active).reduce((k,p)=>k+DAYS.filter(d=>["drive","pax"].includes(p.days?.[d]?.mark)).length,0);
+  alert(`Ciclo cerrado y guardado en el historial.`+(marks?`\n\nAviso: hay ${marks} marca${marks>1?"s":""} manual${marks>1?"es":""} (Conduce o Paquete) que se mantiene${marks>1?"n":""} para el ciclo nuevo. Revísala${marks>1?"s":""} en Horarios.`:""));
+};
+$("#gridTbl").addEventListener("click",e=>{
+  const td=e.target.closest("td.click"); if(!td) return;
+  const p=state.people.find(x=>x.name===td.dataset.n); if(!p) return;
+  const x=p.days[td.dataset.d]; if(!x) return;
+  x.mark = x.mark==="auto"?"drive" : x.mark==="drive"?"pax" : "auto";
+  delete state.sample; save(); renderTable(); renderPlan();
+});
 
 // ---------- exportar Excel ----------
 let lastResult=null;
 $("#xlsx").onclick=()=>{
   if(typeof XLSX==="undefined"){ alert("La librería de Excel no ha cargado (¿sin conexión?). Prueba de nuevo o usa Guardar PDF."); return; }
-  const r=lastResult||solve(state);
-  const names=state.people.filter(p=>p.active).map(p=>p.name).sort((a,b)=>a.localeCompare(b));
+  const r=lastResult||solve(state, biasFor(state));
+  const names=activeNames();
   const wb=XLSX.utils.book_new();
   // 1. Semana: persona x día, igual que la rejilla
-  const sem=[["Persona",...DAYS,"Conduce","Comparte"]];
+  const ci=cycleInfo();
+  const sem=[];
+  if(ci.label) sem.push([`Ciclo ${ci.label}`, `${ci.weeks} semanas`], []);
+  sem.push(["Persona",...DAYS,"Conduce","Comparte"]);
   for(const n of names){
     const row=[n];
     for(const d of DAYS){ const role=r.roles[n+"|"+d], t=r.trips.find(x=>x.person===n&&x.day===d);
@@ -337,19 +673,34 @@ $("#xlsx").onclick=()=>{
   }
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sem), "Semana");
   // 2. Coches
-  const cars=[["Día","Sentido","Hora","Conductor/a","Pasajeros/as","Ocupación"]];
-  for(const c of r.cars) cars.push([c.day,c.dir,c.time,c.driver,c.passengers.join(", "),c.passengers.length+1]);
+  const cars=[["Día","Sentido","Hora","Conductor/a","Pasajeros/as","Ocupación","También podrían","Paquetes"]];
+  for(const c of r.cars) cars.push([c.day,c.dir,c.time,c.driver,c.passengers.join(", "),c.passengers.length+1,c.alternatives.join(", "),c.passengers.filter(p=>!c.alternatives.includes(p)).join(", ")]);
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(cars), "Coches");
+  // 2b. Rejilla (misma disposición que la V6; sin colores: el número identifica el coche)
+  const cols=v6Columns(r);
+  if(cols.length){
+    const rej=[["",...cols.map(c=>c.day)],["",...cols.map(c=>DIR_LABEL[c.dir])],["Persona",...cols.map(c=>c.car.time)],["(coche nº)",...cols.map(c=>c.no)]];
+    const SYM={d:"●",a:"◐",p:"○"};
+    for(const n of names) rej.push([n,...cols.map(c=>{ const k=v6Kind(c,n); return k?`${SYM[k]}${c.no}`:""; })]);
+    rej.push([],["● conduce · ◐ también podría · ○ paquete · el número es el coche"]);
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rej), "Rejilla");
+  }
   // 3. Equidad
-  const eq=[["Persona","Días conduce","Días comparte","%"]];
-  for(const n of names){ const dr=r.driving[n]??0, sh=r.sharing[n]??0; eq.push([n,dr,sh,sh?Math.round(100*dr/sh)/100:""]); }
+  const bal=balance(state);
+  const eq=[["Persona","Días conduce","Días comparte","%","Le toca (días/sem)","Saldo acumulado (días)"]];
+  for(const n of names){ const dr=r.driving[n]??0, sh=r.sharing[n]??0; eq.push([n,dr,sh,sh?Math.round(100*dr/sh)/100:"",sh?Math.round(r.meanRatio*sh*100)/100:"",Math.round((bal[n]||0)*10)/10]); }
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(eq), "Equidad");
+  if((state.history||[]).length){
+    const hist=[["Inicio","Fin","Semanas","Persona","Conduce/sem","Comparte/sem","Le toca/sem","Saldo del ciclo (días)"]];
+    for(const h of state.history) for(const n in h.people){ const x=h.people[n]; hist.push([h.start,h.end,h.weeks,n,x.driving,x.sharing,x.fair,Math.round((x.driving-x.fair)*h.weeks*10)/10]); }
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(hist), "Historial");
+  }
   // 4. Horarios (los datos de entrada, por si hay que reimportarlos)
-  const hor=[["Persona","Activa",...DAYS.flatMap(d=>[d+" entrada",d+" salida",d+" espera hasta",d+" comparte"])]];
-  for(const p of state.people){ const row=[p.name,p.active?"sí":"no"]; for(const d of DAYS){ const x=p.days?.[d]||{}; row.push(x.in||"",x.out||"",x.flex||"",x.share==="no"?"no":"sí"); } hor.push(row); }
+  const hor=[["Persona","Activa",...(state.useCaps?["Máx. días/sem"]:[]),...DAYS.flatMap(d=>[d+" entrada",d+" entra desde",d+" salida",d+" espera hasta",d+" marca"])]];
+  for(const p of state.people){ const row=[p.name,p.active?"sí":"no",...(state.useCaps?[Number.isInteger(p.maxDrive)?p.maxDrive:""]:[])]; for(const d of DAYS){ const x=p.days?.[d]||{}; row.push(x.in||"",x.inflex||"",x.out||"",x.flex||"",MARK_LABEL[x.mark||"auto"]); } hor.push(row); }
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(hor), "Horarios");
   for(const ws of Object.values(wb.Sheets)){ const w=[]; XLSX.utils.sheet_to_json(ws,{header:1}).forEach(r=>r.forEach((v,i)=>w[i]=Math.max(w[i]||8,String(v??"").length+2))); ws["!cols"]=w.map(wch=>({wch:Math.min(wch,40)})); }
-  XLSX.writeFile(wb, `cotxa-reparto-${new Date().toISOString().slice(0,10)}.xlsx`);
+  XLSX.writeFile(wb, `cotxa-reparto-${ci.start?ci.start+"_"+ci.end:new Date().toISOString().slice(0,10)}.xlsx`);
 };
 
 // ---------- pestañas ----------

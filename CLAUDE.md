@@ -16,7 +16,20 @@ de coches y repartir la carga de conducir de forma equitativa.
 - Todos salen del mismo punto de encuentro: una sola zona (`zone` existe pero
   no se usa salvo que cambie la situación).
 - Capacidad 4 por defecto (a veces 5: `--capacity 5`).
-- `salida_flex`: la persona acepta salir más tarde si así va acompañada.
+- Horas flexibles: `entrada_flex` ("entra desde", acepta entrar antes) y
+  `salida_flex` ("espera hasta", acepta salir después). La persona se mueve
+  a su hora flexible sólo si a la suya iría sola y en la flexible hay
+  compañía, o si así hace falta un coche menos en total (`_apply_flex`).
+- Tope opcional de días conduciendo/semana por persona (`max_drive`): se
+  respeta salvo que sea la única forma de cubrir una franja (se avisa). En la
+  web sólo cuenta con el interruptor "Topes de días" encendido.
+- Marcas manuales por `(persona, día)`: **conduce** se fija como conductor,
+  **paquete** nunca conduce ese día (pero comparte y cuenta en la equidad).
+  El solver no las toca. En cada coche se señala quién más *podría* llevarlo
+  sin pasarse de lo que le toca ("también podrían"); el resto son paquetes.
+- Horas imposibles (salida no posterior a la entrada, flex incoherente,
+  formato inválido): ese `(persona, día)` queda fuera del reparto con aviso.
+  `validate_trip()` en Python y `validateDay()` en la web, mismos textos.
 - Equidad = igualar `días conduciendo / días compartiendo` entre personas.
   Alguien que viene 2 días no debe conducir tanto como quien viene 5.
 
@@ -36,18 +49,42 @@ de coches y repartir la carga de conducir de forma equitativa.
   SheetJS (`docs/vendor/xlsx.full.min.js`, 0.18.5, licencia Apache-2.0) para
   exportar Excel. El PDF se hace con `window.print()` + CSS `@media print`.
 - La función `solve(state)` del JS es un port 1:1 de `solver.py`. Cualquier
-  cambio en el algoritmo se hace en los dos sitios.
+  cambio en el algoritmo se hace en los dos sitios; `tests/test_parity.py`
+  ejecuta el JS con Node sobre los mismos datos y falla si divergen (se
+  salta si no hay Node). Tras tocar el solver, ejecutar `pytest` siempre.
 - Estado en `localStorage` (clave `cotxa.state.v1`) + exportar/importar JSON.
-  Formato: `{capacity, people:[{name, active, days:{dilluns:{in,out,flex,share}}}]}`.
+  Formato: `{capacity, cycle?:{start,end}, useCaps, people:[{name, active, maxDrive?, days:{dilluns:{in,inflex,out,flex,mark}}}]}`.
+  `inflex` = "entra desde" (acepta entrar antes), `flex` = "espera hasta".
+  `fixedTimes` (interruptor "Horas fijas") y `bellTimes` (lista editable, por
+  defecto `BELL_DEFAULT`, las horas del instituto): con el modo encendido los
+  campos de hora son desplegables con esa lista; una hora guardada fuera de la
+  lista se conserva y se muestra con ⚠. Sólo afecta a la entrada de datos.
+  `printDetail` añade al PDF una 2ª hoja con el detalle (clase `print-detail`
+  en `body`); por defecto el PDF es sólo la rejilla V6 (`renderV6`, apaisado).
+  `useCaps` es el interruptor "Topes de días"; sólo si está encendido se
+  aplica `maxDrive` (tope de días conduciendo/semana por persona; equivale a
+  `Person.max_drive` en Python, leído de `config.json`).
+  `cycle` (fechas ISO, opcional) rotula el plan, el PDF y el Excel; sólo
+  existe en la web, el CLI no lo usa.
+  `history: [{start, end, weeks, closed, people:{name:{driving, sharing, fair}}}]`
+  son los ciclos cerrados ("Cerrar ciclo"). Saldo por persona = Σ (driving −
+  fair) × weeks (días; + = perjudicado). `biasFor()` lo reparte entre las
+  semanas del ciclo nuevo (12 si no hay fechas) y lo pasa a `solve(state, bias)`.
+  `mark` ∈ `auto` (decide el solver) · `drive` (conduce sí o sí) · `pax`
+  (paquete: nunca conduce ese día) · `solo` (no comparte). Los JSON antiguos
+  traían `share: si/no`; `normalize()` los convierte al cargar/importar.
 
 ## Código
 - Python ≥ 3.11, sin dependencias en runtime (openpyxl sólo para importar).
 - `src/cotxa/models.py` dataclasses · `solver.py` algoritmo · `report.py`
   salida · `cli.py` entrada · `io.py` carga de CSV/JSON.
-- `solve(trips, people, capacity) -> SolveResult(plan, warnings)` es la API
-  interna; cualquier solver nuevo debe respetar esa firma para poder compararlos.
+- `solve(trips, people, capacity, bias=None) -> SolveResult(plan, warnings)` es
+  la API interna; cualquier solver nuevo debe respetar esa firma para poder
+  compararlos. `bias` = compensación de ciclos anteriores en días/semana por
+  persona; se suma a los días conduciendo al medir la carga.
 - Tests con `pytest` (`tests/`). `test_real_data_is_balanced` corre sobre los
   datos de ejemplo de `data/horaris.sample.csv`; añade un test por cada regla nueva.
+  `test_parity.py` compara Python y web (necesita Node; si no, se salta).
 - Idioma: identificadores en inglés, docstrings/comentarios/mensajes al usuario
   en castellano. Nombres de días en valenciano (`dilluns`…`divendres`) porque
   así vienen en los datos.
@@ -69,3 +106,42 @@ con la misma hora = varios coches. `scripts/import_xlsx.py` la convierte en CSV.
 ## Confirmado con el usuario
 Capacidad 4 (a veces 5). Mismo punto de encuentro para todos. Todos participan
 salvo ausencias temporales (`active: false`). Ver README > Hoja de ruta.
+En la V6, cada bloque de color es un coche y las marcas señalan quién *podría*
+conducir; el personal decide sobre la marcha quién coge el coche. El plan se
+repite idéntico cada semana durante un ciclo (normalmente 3 meses; la duración
+debe ser configurable). Los cambios puntuales (alguien se va antes al médico)
+se avisan ese día. Un tope de días conduciendo por persona es opcional y a
+criterio del organizador, nunca obligatorio. La app ya permite renombrar,
+añadir y eliminar personas; falta reordenarlas y retocar el reparto a mano.
+El ciclo sirve, de momento, para rotular el plan con sus fechas y para ver
+quién sale más perjudicado (conduce por encima de lo que le toca) y poder
+compensarlo después; no se generan semanas distintas.
+Uso real de la app: se entra al empezar un ciclo (horarios, cálculo, retoques,
+PDF y Excel para el grupo) y al terminar (ver quién salió perjudicado y
+compensarlo en el siguiente). No es de uso diario; los imprevistos del día a
+día no se gestionan en la app. El PDF y el Excel son el producto final.
+La compensación entre ciclos la aplica la app sola, mostrando el saldo, y el
+organizador puede corregirla a mano. Los horarios no cambian en todo el curso;
+una baja se gestiona desactivando a la persona (y, si es a mitad de ciclo,
+cerrando el ciclo con las semanas que lleve y abriendo otro). Hoy no existe
+tope semanal de días conduciendo por persona.
+
+## Forma de trabajar con el organizador
+El usuario no es programador: es el organizador del grupo y usa la app para
+calcular el reparto. Estas reglas se aplican en todas las sesiones.
+
+1. **Explicar antes de tocar.** Antes de modificar o crear cualquier archivo,
+   explicar en lenguaje llano qué se va a cambiar, en qué archivos, por qué y
+   qué notará el usuario en la app. Sin jerga sin explicar.
+2. **Esperar confirmación.** No aplicar nada hasta que el usuario confirme
+   con un "adelante" o similar. Sin confirmación, no se toca nada.
+3. **Una parte cada vez.** Si una tarea tiene varias partes, proponerlas de
+   una en una y pedir confirmación en cada una.
+4. **Comprobar después.** Tras aplicar un cambio, ejecutar `pytest` y decir
+   en una frase si todo ha ido bien. Si se toca la app web, regenerar
+   `docs/index.html` con `python scripts/build_web.py` y avisar, porque es
+   lo que se publica.
+5. **Preguntar, no suponer.** Ante dudas sobre el funcionamiento del grupo
+   (horarios, costumbres, preferencias), preguntar al usuario.
+6. **Sin commits ni push.** Los hace el usuario desde GitHub Desktop cuando
+   haya revisado los cambios.

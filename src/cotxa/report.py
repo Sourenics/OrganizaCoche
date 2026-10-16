@@ -23,7 +23,8 @@ def weekly_table(plan: Plan) -> str:
             for c in cars:
                 pax = ", ".join(c.passengers) if c.passengers else "(solo)"
                 zone = f" [{c.slot.zone}]" if c.slot.zone != "default" else ""
-                out.append(f"    {c.slot.time:>5}{zone}  🚗 {c.driver:<10} → {pax}")
+                alt = f"  (también podrían: {', '.join(c.alternatives)})" if c.alternatives else ""
+                out.append(f"    {c.slot.time:>5}{zone}  🚗 {c.driver:<10} → {pax}{alt}")
     return "\n".join(out)
 
 

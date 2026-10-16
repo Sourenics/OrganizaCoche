@@ -30,6 +30,9 @@ class Person:
     has_car: bool = True
     active: bool = True  # False = temporalmente fuera de la rueda (no se reparte)
     zone: str = "default"  # todos salen del mismo punto; se mantiene por si hiciera falta
+    # Tope opcional de días conduciendo a la semana (a criterio del organizador).
+    # Se respeta salvo que no haya otra forma de cubrir una franja (entonces se avisa).
+    max_drive: int | None = None
 
 
 @dataclass(frozen=True)
@@ -39,7 +42,12 @@ class Trip:
     arrival: str  # "8:00"
     departure: str  # "13:55"
     departure_flex: str | None = None  # acepta esperar hasta esta hora
-    fixed_role: Role | None = None  # p.ej. SOLO si ese día no comparte
+    # Marca manual del organizador para ese día (None = lo decide el solver):
+    #   DRIVER    "conduce": se fija como conductor/a.
+    #   PASSENGER "paquete": va de pasajero/a seguro, nunca conduce ese día.
+    #   SOLO      "no comparte": va por su cuenta, fuera del reparto ese día.
+    fixed_role: Role | None = None
+    arrival_flex: str | None = None  # "entra desde": acepta entrar antes, a partir de esta hora
 
     @property
     def key(self) -> tuple[str, str]:
@@ -59,6 +67,10 @@ class Car:
     slot: Slot
     driver: str
     passengers: list[str] = field(default_factory=list)
+    # Pasajeros/as que también podrían llevar este coche sin pasarse de lo que
+    # les toca (como las marcas de "posible conductor" de la V6). El resto de
+    # pasajeros/as son "paquetes".
+    alternatives: list[str] = field(default_factory=list)
 
     @property
     def occupants(self) -> list[str]:
@@ -78,3 +90,19 @@ class Plan:
 
     def sharing_days(self, person: str) -> int:
         return sum(1 for (p, _), r in self.roles.items() if p == person and r is not Role.SOLO)
+
+    def people(self) -> list[str]:
+        return sorted({p for p, _ in self.roles})
+
+    def mean_ratio(self) -> float:
+        """Media de (días conduciendo / días compartiendo) entre quienes comparten."""
+        ratios = [self.driving_days(p) / self.sharing_days(p) for p in self.people() if self.sharing_days(p)]
+        return sum(ratios) / len(ratios) if ratios else 0.0
+
+    def fair_days(self, person: str) -> float:
+        """Días a la semana que "le tocaría" conducir según lo que comparte."""
+        return self.mean_ratio() * self.sharing_days(person)
+
+    def cycle_balance(self, person: str, weeks: int) -> float:
+        """Saldo del ciclo en días: positivo = condujo de más (perjudicado), negativo = de menos."""
+        return (self.driving_days(person) - self.fair_days(person)) * weeks

@@ -28,6 +28,26 @@ página y sin servidor: tabla editable de personas y horarios (o *Empezar de
 cero*), botón *Calcular reparto*, vista semanal, reparto por día y franja,
 tabla de equidad, y exportación a **Excel** (4 hojas: Semana, Coches, Equidad,
 Horarios) y a **PDF** (botón *Guardar PDF / Imprimir* → "Guardar como PDF").
+Cada persona y día lleva una **marca**: *Auto* (decide la app), *Conduce*
+(se fija como conductor/a), *Paquete* (va de pasajero/a seguro) o *No
+comparte*. En el reparto, cada coche indica quién más **también podría**
+llevarlo sin pasarse de lo que le toca, como en la V6; un clic en la vista
+semanal alterna Auto → Conduce → Paquete y recalcula. Las fechas del
+**ciclo** (periodo en que se repite el reparto, normalmente un trimestre) se
+indican en Horarios y salen en el rótulo, el PDF y el Excel. Al acabar,
+**Cerrar ciclo** guarda su resumen en un historial (en tu JSON): la tabla de
+equidad muestra el **saldo** acumulado de cada persona (días conducidos de
+más o de menos respecto a lo que le tocaba) y la app lo compensa al calcular
+el ciclo siguiente; las marcas manuales mandan sobre esa compensación.
+La vista **Rejilla** reproduce la disposición de la V6 (personas en filas, un
+coche por columna como barra de color, ● conduce · ◐ también podría · ○
+paquete) y es lo que sale en el PDF, en apaisado; el interruptor *PDF con
+detalle por día* añade una segunda hoja con la semana, los coches y la equidad.
+El interruptor **Horas fijas** convierte las casillas de hora en desplegables
+con la lista de horas del centro (editable), para no teclear mal ninguna.
+El interruptor **Topes de días** añade una columna *Máx./sem.* para limitar,
+si se quiere, los días que conduce cada persona a la semana (la app sólo lo
+supera si no hay otra forma de cubrir una franja, y avisa).
 La librería de Excel (SheetJS) va incluida en `docs/vendor/`, así que la app
 funciona sin conexión y sin depender de terceros.
 Los datos se guardan en el navegador y se pueden **exportar/importar** en JSON
@@ -45,14 +65,15 @@ Publicarla (una sola vez):
 `--data data/horaris.csv` incrusta datos reales **sólo para uso local**: no
 publiques ese `docs/index.html`.
 El solver en JavaScript es un port de `src/cotxa/solver.py` y da el mismo
-resultado; si cambias el algoritmo, cambia los dos (o haz que el test de
-paridad lo detecte, ver hoja de ruta).
+resultado; si cambias el algoritmo, cambia los dos: `tests/test_parity.py`
+ejecuta el de la web con Node sobre los mismos datos y falla si divergen.
 
 ## Cómo funciona
 
 1. **Datos** (`data/horaris.sample.csv`, o tu `data/horaris.csv` local): una fila por persona y día con hora de
-   entrada y de salida. Opcionalmente `salida_flex` (acepta esperar hasta esa
-   hora) y el rol histórico de la V6 (sólo se respeta `no_comparte`).
+   entrada y de salida. Opcionalmente `entrada_flex` / `salida_flex` (horas
+   flexibles: la app mueve a la persona sólo si así no va sola o se ahorra un
+   coche) y el rol histórico de la V6 (sólo se respeta `no_comparte`).
 2. **Franjas**: todas las personas que entran el dilluns a las 8:00 forman la
    franja `(dilluns, entrada, 8:00)`. Cada franja necesita `ceil(n / plazas)`
    coches.
@@ -84,7 +105,8 @@ pytest
 
 `data/config.json` fija la capacidad (4 por defecto; a veces caben 5) y
 permite sacar temporalmente a alguien de la rueda con `"active": false`, sin
-borrar sus horarios. Todo el mundo sale del mismo punto de encuentro.
+borrar sus horarios, o ponerle un tope de días conduciendo a la semana con
+`"max_drive": 2`. Todo el mundo sale del mismo punto de encuentro.
 
 ## Formato de `data/horaris.csv`
 
@@ -94,7 +116,9 @@ borrar sus horarios. Todo el mundo sale del mismo punto de encuentro.
 | dia | `dilluns` | `dilluns`…`divendres` |
 | entrada | `8:00` | |
 | salida | `13:55` | |
-| salida_flex | `13:55` | opcional: acepta esperar hasta esta hora si así va acompañada |
+| entrada_flex | `8:00` | opcional: acepta entrar antes, desde esta hora, si así va acompañada o se ahorra un coche |
+| salida_flex | `13:55` | opcional: acepta esperar hasta esta hora, con la misma regla |
+| marca | `paquete` | opcional: `conduce` (se fija como conductor/a), `paquete` (nunca conduce ese día) o `no_comparte` |
 | rol_entrada_v6 / rol_salida_v6 | `conductor` | histórico de la hoja; sólo `no_comparte` afecta al solver |
 
 ## Estructura
@@ -113,9 +137,9 @@ tests/           pytest
 - [ ] **Entender la V6**: hay franjas con 3 conductores para 4 personas
       (p. ej. dilluns 8:00). Como todos salen del mismo sitio, probablemente
       son preferencias o restricciones no escritas que el CSV aún no recoge.
-- [ ] **Preferencias y restricciones blandas**: pares que prefieren (o no)
-      ir juntos, máximo de días conduciendo por persona, "este día tengo que
-      llevar el coche sí o sí".
+- [x] **Preferencias y restricciones blandas**: marcas *Conduce* / *Paquete*
+      por persona y día, tope opcional de días conduciendo, horas flexibles de
+      entrada y salida. Pendiente: pares que prefieren (o no) ir juntos.
 - [ ] **Rotación entre semanas**: generar planes A/B (semanas pares/impares)
       para que la equidad se mida en el trimestre y no sólo en la semana.
 - [ ] **Solver exacto**: formular como ILP/CP-SAT (OR-Tools) — ~85 variables
@@ -123,8 +147,7 @@ tests/           pytest
       `Plan`, así que es sustituible.
 - [ ] **Compensación económica**: contar km/viajes por persona y proponer
       ajustes.
-- [ ] **Test de paridad** Python ↔ JavaScript (ejecutar el solver JS con
-      Node o Playwright y comparar roles) para que no se desincronicen.
+- [x] **Test de paridad** Python ↔ JavaScript (`tests/test_parity.py`, con Node).
 - [ ] **Datos compartidos**: hoy el administrador es la única fuente de
       verdad (JSON exportado). Si hiciera falta que varias personas editen,
       añadir un almacén gratuito (Firebase/Supabase) sin rehacer la página.
